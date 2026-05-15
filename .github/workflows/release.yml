@@ -1,0 +1,56 @@
+name: Release
+
+# Tag-driven release.
+# Push a `vX.Y.Z` tag → run tests one last time, publish both workspace
+# crates to crates.io (makegov-tango-webhooks first since it's the leaf,
+# then makegov-tango), and create a GitHub Release with auto-generated notes.
+#
+# Required secrets:
+#   CARGO_REGISTRY_TOKEN — crates.io API token with publish scope.
+#   GITHUB_TOKEN          — auto-provided by Actions.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Sanity test
+        run: cargo test --workspace --all-features
+
+      - name: Publish makegov-tango-webhooks to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p makegov-tango-webhooks
+
+      - name: Publish makegov-tango to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p makegov-tango
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            --notes-start-tag "$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || echo '')" \
+            --verify-tag
