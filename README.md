@@ -1,7 +1,7 @@
 # Tango Rust SDK
 
-[![Crates.io](https://img.shields.io/crates/v/tango.svg)](https://crates.io/crates/tango)
-[![Documentation](https://docs.rs/tango/badge.svg)](https://docs.rs/tango)
+[![Crates.io](https://img.shields.io/crates/v/makegov-tango.svg)](https://crates.io/crates/makegov-tango)
+[![Documentation](https://docs.rs/makegov-tango/badge.svg)](https://docs.rs/makegov-tango)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Official, async-first Rust SDK for the [Tango API](https://tango.makegov.com) — federal contracts, IDVs, entities, opportunities, grants, vehicles, and more, with dynamic response shaping so you fetch only the fields you need.
@@ -13,23 +13,25 @@ Sibling SDKs (`tango-node`, `tango-python`) are at v1.0.0; `tango-go` is at v0.1
 ## Features
 
 - **Async-first** — built on `tokio` + `reqwest`. One runtime, clean `futures::Stream`-based pagination.
-- **Dynamic response shaping** — request exactly the fields you need via 21 built-in [`SHAPE_*`](https://docs.rs/tango/latest/tango/#constants) presets or a custom comma-separated field list.
-- **Typed errors** — single [`Error`](https://docs.rs/tango/latest/tango/enum.Error.html) enum with rich payload variants (`Auth`, `NotFound`, `Validation`, `RateLimit`, `Timeout`, `Api`, `Transport`, `Decode`, `Build`). Programmatic dispatch via `err.status()` and `err.is_retryable()`.
+- **Dynamic response shaping** — request exactly the fields you need via 21 built-in [`SHAPE_*`](https://docs.rs/makegov-tango/latest/tango/#constants) presets or a custom comma-separated field list.
+- **Typed errors** — single [`Error`](https://docs.rs/makegov-tango/latest/tango/enum.Error.html) enum with rich payload variants (`Auth`, `NotFound`, `Validation`, `RateLimit`, `Timeout`, `Api`, `Transport`, `Decode`, `Build`). Programmatic dispatch via `err.status()` and `err.is_retryable()`.
 - **Smart retries** — automatic backoff on 5xx / 408 / 429 / transport errors, honoring the server's `Retry-After` header.
 - **Compile-time-checked client builder** — via [`bon`](https://docs.rs/bon). Missing `api_key`? Won't compile.
 - **Async pagination** — `PageStream<T>` implements `futures::Stream`. Yields one item at a time, fetches successive pages automatically.
 - **Forward-compatible models** — every typed model carries `#[serde(flatten)] extra: HashMap<String, Value>` so a server-side schema addition surfaces in `record.extra["new_field"]` rather than being silently dropped.
-- **Webhook signing** — in the separate [`tango-webhooks`](https://docs.rs/tango-webhooks) crate: zero transport deps, HMAC-SHA256 verification, constant-time via `subtle`.
+- **Webhook signing** — in the separate [`makegov-tango-webhooks`](https://docs.rs/makegov-tango-webhooks) crate: zero transport deps, HMAC-SHA256 verification, constant-time via `subtle`.
 
 ## Installation
 
 ```toml
 [dependencies]
-tango = "0.1"
+makegov-tango = "0.1"
 
 # Optional: webhook signing for receivers
-tango-webhooks = "0.1"
+makegov-tango-webhooks = "0.1"
 ```
+
+Crates publish under the `makegov-` prefix on crates.io; Rust imports stay short — `use tango::Client;` and `use tango_webhooks::verify;` — thanks to a `[lib] name` shim in each crate (same pattern as the `aws-sdk-*` family).
 
 Requires Rust **1.80** or later.
 
@@ -72,7 +74,7 @@ async fn main() -> tango::Result<()> {
 
 ### Get a typed agency
 
-`get_agency` returns the typed [`AgencyRecord`](https://docs.rs/tango/latest/tango/models/struct.AgencyRecord.html); forward-compatible fields land in `agency.extra`.
+`get_agency` returns the typed [`AgencyRecord`](https://docs.rs/makegov-tango/latest/tango/models/struct.AgencyRecord.html); forward-compatible fields land in `agency.extra`.
 
 ```rust,no_run
 # use tango::Client;
@@ -198,7 +200,7 @@ The client also automatically retries 429s, honoring `Retry-After`. See [`docs/C
 
 ### Webhook verification
 
-Webhook signing lives in the separate [`tango-webhooks`](https://crates.io/crates/tango-webhooks) crate so a receiver service doesn't have to pull in the full SDK:
+Webhook signing lives in the separate [`makegov-tango-webhooks`](https://crates.io/crates/makegov-tango-webhooks) crate so a receiver service doesn't have to pull in the full SDK:
 
 ```rust
 use tango_webhooks::{verify, SIGNATURE_HEADER};
@@ -290,7 +292,7 @@ In-repo guides:
 
 External:
 
-- API docs (Rust): <https://docs.rs/tango> · <https://docs.rs/tango-webhooks>
+- API docs (Rust): <https://docs.rs/makegov-tango> · <https://docs.rs/makegov-tango-webhooks>
 - API reference: <https://docs.makegov.com>
 - Sibling SDKs: [`@makegov/tango-node`](https://github.com/makegov/tango-node) · [`tango-python`](https://github.com/makegov/tango-python) · [`tango-go`](https://github.com/makegov/tango-go)
 

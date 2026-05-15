@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD013 -->
 # Changelog
 
-All notable changes to the `tango` and `tango-webhooks` crates are documented here.
+All notable changes to the `makegov-tango` and `makegov-tango-webhooks` crates are documented here.
 
 This project follows [Semantic Versioning](https://semver.org/).
 
@@ -11,7 +11,7 @@ First public release of the Tango Rust SDK.
 
 This is an initial **v0.1.0** rather than v1.0.0 — the sibling `tango-node` and `tango-python` SDKs are at v1.0.0; `tango-go` is at v0.1.0 with the same surface. Same logic: the transport, error model, retry / rate-limit handling, pagination, and webhook signing are at sibling-SDK quality and not expected to change. The resource-method surface stabilizes once integration with the sibling SDKs is verified against the live API. Final 1.0.0 is the target.
 
-### `tango` v0.1.0
+### `makegov-tango` v0.1.0
 
 #### Added
 
@@ -67,7 +67,7 @@ Locked at the planning stage:
 - Edition 2021, MSRV 1.80 (edition 2024 bump deferred to 0.2+).
 - Bare `&str` / `String` for identifiers (no newtype `Uei` / `Piid` yet — mirrors sibling SDKs).
 
-### `tango-webhooks` v0.1.0
+### `makegov-tango-webhooks` v0.1.0
 
 #### Added
 

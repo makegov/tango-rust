@@ -2,7 +2,7 @@
 
 Method-by-method reference for every public method on `tango::Client`. For the deep architectural walk-through see [`ARCHITECTURE.md`](ARCHITECTURE.md); for builder/transport/error specifics see [`CLIENT.md`](CLIENT.md).
 
-The canonical, always-up-to-date reference is the auto-generated rustdoc at **<https://docs.rs/tango>**. This document is a curated overview keyed to the resource groups in the plan.
+The canonical, always-up-to-date reference is the auto-generated rustdoc at **<https://docs.rs/makegov-tango>**. This document is a curated overview keyed to the resource groups in the plan.
 
 ## Conventions
 
@@ -211,7 +211,7 @@ Client-side validations (return `Error::Validation` before any HTTP call):
 - `create_webhook_alert`: `name` non-empty, `query_type` non-empty (singular!), `filters` non-empty
 - All `get_*`, `update_*`, `delete_*`, `test_webhook_endpoint`: `id` non-empty
 
-For HMAC-SHA256 signing/verification on incoming deliveries, use the separate [`tango-webhooks`](https://docs.rs/tango-webhooks) crate. See [`WEBHOOKS.md`](WEBHOOKS.md).
+For HMAC-SHA256 signing/verification on incoming deliveries, use the separate [`makegov-tango-webhooks`](https://docs.rs/makegov-tango-webhooks) crate. See [`WEBHOOKS.md`](WEBHOOKS.md).
 
 ### Meta (`meta.rs`)
 

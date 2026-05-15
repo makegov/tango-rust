@@ -1,5 +1,5 @@
 [package]
-name          = "tango"
+name          = "makegov-tango"
 description   = "Official Rust SDK for the Tango federal-contracting data API"
 version.workspace      = true
 edition.workspace      = true
@@ -11,6 +11,11 @@ authors.workspace      = true
 readme.workspace       = true
 keywords      = ["tango", "sdk", "government", "federal", "contracting"]
 categories    = ["api-bindings", "web-programming::http-client"]
+
+[lib]
+# Crate is published as `makegov-tango` on crates.io; user code still imports
+# as `use tango::...` thanks to this lib-name shim.
+name          = "tango"
 
 [dependencies]
 reqwest      = { workspace = true }

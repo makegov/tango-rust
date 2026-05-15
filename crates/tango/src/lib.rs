@@ -86,11 +86,12 @@
 //!
 //! ## Webhook signing
 //!
-//! Webhook delivery verification is in the separate [`tango-webhooks`] crate
-//! so a verifier service doesn't have to pull in the full SDK. See
-//! `<https://docs.rs/tango-webhooks>` for HMAC-SHA256 signing and verification.
+//! Webhook delivery verification is in the separate [`makegov-tango-webhooks`]
+//! crate so a verifier service doesn't have to pull in the full SDK. See
+//! `<https://docs.rs/makegov-tango-webhooks>` for HMAC-SHA256 signing and
+//! verification.
 //!
-//! [`tango-webhooks`]: https://docs.rs/tango-webhooks
+//! [`makegov-tango-webhooks`]: https://docs.rs/makegov-tango-webhooks
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

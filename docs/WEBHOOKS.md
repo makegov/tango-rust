@@ -30,12 +30,14 @@ A typical setup:
 3. **Tango POSTs to your endpoint** when matching records appear. The body is JSON; the header `X-Tango-Signature: sha256=<hex>` is the HMAC-SHA256 of the raw body bytes keyed by your endpoint's secret.
 4. **Your handler verifies the signature**, parses the body, and acts on it.
 
-## Receiving deliveries — the `tango-webhooks` crate
+## Receiving deliveries — the `makegov-tango-webhooks` crate
 
 ```toml
 [dependencies]
-tango-webhooks = "0.1"
+makegov-tango-webhooks = "0.1"
 ```
+
+The crate publishes as `makegov-tango-webhooks` on crates.io and imports as `use tango_webhooks::...` thanks to a `[lib] name` shim.
 
 Public surface:
 

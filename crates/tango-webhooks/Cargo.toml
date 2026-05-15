@@ -1,5 +1,5 @@
 [package]
-name          = "tango-webhooks"
+name          = "makegov-tango-webhooks"
 description   = "HMAC-SHA256 signing and verification for Tango webhook deliveries"
 version.workspace      = true
 edition.workspace      = true
@@ -10,6 +10,11 @@ homepage.workspace     = true
 authors.workspace      = true
 keywords      = ["tango", "webhooks", "hmac", "sha256", "signing"]
 categories    = ["cryptography", "web-programming"]
+
+[lib]
+# Crate is published as `makegov-tango-webhooks` on crates.io; user code still
+# imports as `use tango_webhooks::...` thanks to this lib-name shim.
+name          = "tango_webhooks"
 
 [dependencies]
 hmac         = { workspace = true }

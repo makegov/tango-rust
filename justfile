@@ -52,8 +52,8 @@ ci: fmt-check lint test
 # Dry-run the publish flow for both crates (catches version/metadata issues
 # before tagging). tango-webhooks goes first to match release.yml.
 release-check:
-    cargo publish --dry-run -p tango-webhooks
-    cargo publish --dry-run -p tango
+    cargo publish --dry-run -p makegov-tango-webhooks
+    cargo publish --dry-run -p makegov-tango
 
 # Install pre-commit + pre-push git hooks. Requires uv (https://docs.astral.sh/uv/).
 # Hooks mirror what CI runs: fmt + check on commit, clippy on push.
