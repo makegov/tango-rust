@@ -23,6 +23,22 @@ just ci       # fmt-check + lint + test (matches CI)
 
 Run `just` with no arguments to see the full list of recipes.
 
+### Git hooks (optional but recommended)
+
+`.pre-commit-config.yaml` ships hooks that mirror what CI runs. We use [`uv`](https://docs.astral.sh/uv/) to manage [`pre-commit`](https://pre-commit.com/):
+
+```bash
+brew install uv          # if you don't already have it
+just hooks               # uv tool install pre-commit + register both hooks
+```
+
+Once installed:
+
+- **pre-commit:** `cargo fmt --check`, `cargo check`, end-of-file + trailing-whitespace cleanup (fast).
+- **pre-push:** `cargo clippy --workspace --all-targets -- -D warnings` (catches what CI catches, before you push).
+
+Hooks are entirely opt-in — skip the setup and commits/pushes are unaffected. CI still catches everything.
+
 ### Coverage
 
 Coverage runs via [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov). Install it once with `cargo install cargo-llvm-cov`, then:

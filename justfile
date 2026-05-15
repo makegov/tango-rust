@@ -54,3 +54,11 @@ ci: fmt-check lint test
 release-check:
     cargo publish --dry-run -p tango-webhooks
     cargo publish --dry-run -p tango
+
+# Install pre-commit + pre-push git hooks. Requires uv (https://docs.astral.sh/uv/).
+# Hooks mirror what CI runs: fmt + check on commit, clippy on push.
+hooks:
+    @command -v uv >/dev/null 2>&1 || (echo "uv not on PATH. Install with: brew install uv" && exit 1)
+    uv tool install --upgrade pre-commit
+    pre-commit install
+    pre-commit install --hook-type pre-push
