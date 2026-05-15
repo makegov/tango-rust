@@ -1,0 +1,43 @@
+name: Tests
+
+# Cargo test matrix. Runs on push to main and on all PRs.
+#
+# MSRV is pinned to 1.80 (matches `rust-version` in the workspace Cargo.toml).
+# "stable" tracks the current Rust release, so we don't need to revisit when
+# 1.81+ ships.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: ["stable", "1.80"]
+        os: ["ubuntu-latest", "macos-latest"]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (${{ matrix.rust }})
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build (workspace)
+        run: cargo build --workspace --verbose
+
+      - name: Test (all features)
+        run: cargo test --workspace --all-features --verbose
+
+      - name: Test (no default features)
+        run: cargo test --workspace --no-default-features --verbose

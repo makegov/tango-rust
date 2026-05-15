@@ -1,0 +1,52 @@
+[package]
+name          = "tango"
+description   = "Official Rust SDK for the Tango federal-contracting data API"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+homepage.workspace     = true
+authors.workspace      = true
+readme.workspace       = true
+keywords      = ["tango", "sdk", "government", "federal", "contracting"]
+categories    = ["api-bindings", "web-programming::http-client"]
+
+[dependencies]
+reqwest      = { workspace = true }
+tokio        = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+thiserror    = { workspace = true }
+bon          = { workspace = true }
+futures      = { workspace = true }
+url          = { workspace = true }
+http         = { workspace = true }
+
+[dev-dependencies]
+httpmock     = { workspace = true }
+tokio        = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }
+tokio-test   = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json   = { workspace = true }
+
+[lints.rust]
+unreachable_pub      = "warn"
+missing_docs         = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all          = { level = "warn", priority = -1 }
+pedantic     = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc      = "allow"
+must_use_candidate      = "allow"
+missing_panics_doc      = "allow"
+return_self_not_must_use = "allow"
+needless_pass_by_value   = "allow"
+too_many_lines           = "allow"
+doc_markdown             = "allow"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

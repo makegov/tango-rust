@@ -1,0 +1,67 @@
+name: Bug report
+description: Report a defect in tango-rust
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear, concise description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      description: What you thought tango-rust would do instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: |
+        Minimal Rust snippet that demonstrates the bug. Strip secrets.
+      value: |
+        ```rust
+        let client = tango::Client::builder().api_key("...").build()?;
+        let entity = client.get_entity("UEI123").await?;
+        ```
+      render: markdown
+    validations:
+      required: false
+
+  - type: input
+    id: tango-rust-version
+    attributes:
+      label: tango-rust version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust version (`rustc --version`)
+      placeholder: "rustc 1.80.0 (..)"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS / arch
+      placeholder: "macOS 14 arm64 / Ubuntu 24.04 x86_64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, stack traces, request/response bodies (redacted), screenshots.
+    validations:
+      required: false

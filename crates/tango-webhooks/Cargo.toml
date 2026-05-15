@@ -1,0 +1,40 @@
+[package]
+name          = "tango-webhooks"
+description   = "HMAC-SHA256 signing and verification for Tango webhook deliveries"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+homepage.workspace     = true
+authors.workspace      = true
+keywords      = ["tango", "webhooks", "hmac", "sha256", "signing"]
+categories    = ["cryptography", "web-programming"]
+
+[dependencies]
+hmac         = { workspace = true }
+sha2         = { workspace = true }
+subtle       = { workspace = true }
+hex          = { workspace = true }
+http         = { workspace = true, optional = true }
+
+[features]
+default = []
+http    = ["dep:http"]
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+
+[lints.rust]
+unreachable_pub      = "warn"
+missing_docs         = "warn"
+missing_debug_implementations = "warn"
+
+[lints.clippy]
+all          = { level = "warn", priority = -1 }
+pedantic     = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
