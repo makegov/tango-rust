@@ -43,6 +43,10 @@ pub struct ListEntitiesOptions {
     /// CAGE code filter.
     #[builder(into)]
     pub cage_code: Option<String>,
+    /// CAGE filter. Distinct API filter from [`cage_code`](Self::cage_code);
+    /// the server rejects setting both — use one or the other.
+    #[builder(into)]
+    pub cage: Option<String>,
     /// NAICS code filter.
     #[builder(into)]
     pub naics: Option<String>,
@@ -93,6 +97,7 @@ impl ListEntitiesOptions {
         );
         push_opt(&mut q, "search", self.search.as_deref());
         push_opt(&mut q, "cage_code", self.cage_code.as_deref());
+        push_opt(&mut q, "cage", self.cage.as_deref());
         push_opt(&mut q, "naics", self.naics.as_deref());
         push_opt(&mut q, "name", self.name.as_deref());
         push_opt(&mut q, "psc", self.psc.as_deref());
@@ -201,6 +206,7 @@ mod tests {
         let opts = ListEntitiesOptions::builder()
             .search("Acme")
             .cage_code("1ABC5")
+            .cage("1ABC5")
             .naics("541512")
             .name("Acme Corp")
             .psc("D302")
@@ -215,6 +221,7 @@ mod tests {
         let q = opts.to_query();
         assert_eq!(get_q(&q, "search").as_deref(), Some("Acme"));
         assert_eq!(get_q(&q, "cage_code").as_deref(), Some("1ABC5"));
+        assert_eq!(get_q(&q, "cage").as_deref(), Some("1ABC5"));
         assert_eq!(get_q(&q, "naics").as_deref(), Some("541512"));
         assert_eq!(get_q(&q, "name").as_deref(), Some("Acme Corp"));
         assert_eq!(get_q(&q, "psc").as_deref(), Some("D302"));

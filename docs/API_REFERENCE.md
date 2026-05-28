@@ -31,8 +31,11 @@ Options: `ListAgenciesOptions`, `GetAgencyOptions`, `AgencyContractsOptions` (al
 | Method | Endpoint | Returns |
 | ------ | -------- | ------- |
 | `list_contracts(opts)` / `iterate_contracts(opts)` | `GET /api/contracts/` | `Page<Record>` / `PageStream<Record>` |
+| `get_contract(key, opts)` | `GET /api/contracts/{key}/` | `Record` |
+| `list_contract_subawards(key, opts)` | `GET /api/contracts/{key}/subawards/` | `Page<Record>` |
+| `list_contract_transactions(key, opts)` | `GET /api/contracts/{key}/transactions/` | `Page<Record>` |
 
-Options: `ListContractsOptions`. SDK-friendly filter aliases (`naics_code`, `psc_code`, `recipient_name`, `recipient_uei`, `set_aside_type`, `keyword`) map onto canonical API names. When both are set, the SDK alias wins (mirrors Node/Python). `sort`+`order` combine into `ordering` with `-` prefix for descending.
+Options: `ListContractsOptions` (list), `ListOptions` (`get_contract`), `EntitySubresourceOptions` (sub-routes). SDK-friendly filter aliases (`naics_code`, `psc_code`, `recipient_name`, `recipient_uei`, `set_aside_type`, `keyword`) map onto canonical API names. When both are set, the SDK alias wins (mirrors Node/Python). `sort`+`order` combine into `ordering` with `-` prefix for descending.
 
 ### IDVs (`idvs.rs`, `idv_subresources.rs`)
 
@@ -44,8 +47,6 @@ Options: `ListContractsOptions`. SDK-friendly filter aliases (`naics_code`, `psc
 | `list_idv_child_idvs(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/child-idvs/` | `Page<Record>` / `PageStream<Record>` |
 | `list_idv_transactions(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/transactions/` | `Page<Record>` / `PageStream<Record>` |
 | `list_idv_lcats(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/lcats/` | `Page<Record>` / `PageStream<Record>` |
-| `get_idv_summary(key)` *(deprecated)* | `GET /api/idvs/{key}/summary/` | `Record` |
-| `list_idv_summary_awards(key, opts)` *(deprecated)* | `GET /api/idvs/{key}/summary/awards/` | `Page<Record>` |
 
 Options: `ListIDVsOptions`, `GetIDVOptions`, `IdvSubresourceOptions` (shared across the sub-resource list endpoints).
 
@@ -61,9 +62,10 @@ Options: `ListIDVsOptions`, `GetIDVOptions`, `IdvSubresourceOptions` (shared acr
 | `list_entity_otidvs(uei, opts)` / `iterate_*` | `GET /api/entities/{uei}/otidvs/` | `Page<Record>` / `PageStream<Record>` |
 | `list_entity_subawards(uei, opts)` / `iterate_*` | `GET /api/entities/{uei}/subawards/` | `Page<Record>` / `PageStream<Record>` |
 | `list_entity_lcats(uei, opts)` / `iterate_*` | `GET /api/entities/{uei}/lcats/` | `Page<Record>` / `PageStream<Record>` |
+| `get_entity_budget_flows(uei, opts)` | `GET /api/entities/{uei}/budget-flows/` | `Page<Record>` |
 | `get_entity_metrics(uei, months, period_grouping)` | `GET /api/entities/{uei}/metrics/{months}/{period_grouping}/` | `Record` |
 
-Options: `ListEntitiesOptions`, `GetEntityOptions`, `EntitySubresourceOptions` (shared across sub-resource list endpoints).
+Options: `ListEntitiesOptions`, `GetEntityOptions`, `EntitySubresourceOptions` (shared across sub-resource list endpoints). `ListEntitiesOptions` exposes both `cage` and `cage_code` as distinct typed filters; the server rejects setting both.
 
 ### Vehicles (`vehicles.rs`, `vehicle_subresources.rs`)
 
@@ -81,12 +83,16 @@ Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions
 | Method | Endpoint | Returns |
 | ------ | -------- | ------- |
 | `list_opportunities(opts)` / `iterate_*` | `GET /api/opportunities/` | `Page<Record>` / `PageStream<Record>` |
+| `get_opportunity(opportunity_id, opts)` | `GET /api/opportunities/{opportunity_id}/` | `Record` |
 | `list_notices(opts)` / `iterate_*` | `GET /api/notices/` | `Page<Record>` / `PageStream<Record>` |
+| `get_notice(notice_id, opts)` | `GET /api/notices/{notice_id}/` | `Record` |
 | `list_forecasts(opts)` / `iterate_*` | `GET /api/forecasts/` | `Page<Record>` / `PageStream<Record>` |
+| `get_forecast(id, opts)` | `GET /api/forecasts/{id}/` | `Record` |
 | `list_grants(opts)` / `iterate_*` | `GET /api/grants/` | `Page<Record>` / `PageStream<Record>` |
+| `get_grant(grant_id, opts)` | `GET /api/grants/{grant_id}/` | `Record` |
 | `search_opportunity_attachments(opts)` | `GET /api/opportunities/attachment-search/` | `Page<Record>` |
 
-Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`, `SearchOpportunityAttachmentsOptions`. The attachment-search method validates `q` non-empty client-side.
+Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`, `SearchOpportunityAttachmentsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. The attachment-search method validates `q` non-empty client-side. `ListGrantsOptions` exposes a typed `grant_id` filter.
 
 ### OTAs / OTIDVs (`otas.rs`)
 
@@ -105,8 +111,20 @@ Options: `ListOTAsOptions`, `GetOTAOptions`, `ListOTIDVsOptions`, `GetOTIDVOptio
 | Method | Endpoint | Returns |
 | ------ | -------- | ------- |
 | `list_subawards(opts)` / `iterate_subawards(opts)` | `GET /api/subawards/` | `Page<Record>` / `PageStream<Record>` |
+| `get_subaward(key, opts)` | `GET /api/subawards/{key}/` | `Record` |
 
-Options: `ListSubawardsOptions`. **Note**: the server rejects `id` and `amount` in subaward shapes; use `SHAPE_SUBAWARDS_MINIMAL` or a custom shape that avoids them.
+Options: `ListSubawardsOptions` (list), `ListOptions` (`get_subaward`). **Note**: the server rejects `id` and `amount` in subaward shapes; use `SHAPE_SUBAWARDS_MINIMAL` or a custom shape that avoids them.
+
+### Budget (`budget.rs`)
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_budget_accounts(opts)` / `iterate_budget_accounts(opts)` | `GET /api/budget/accounts/` | `Page<Record>` / `PageStream<Record>` |
+| `get_budget_account(id, opts)` | `GET /api/budget/accounts/{id}/` | `Record` |
+| `get_budget_account_quarters(id, opts)` | `GET /api/budget/accounts/{id}/quarters/` | `Page<Record>` |
+| `get_budget_account_recipients(id, opts)` | `GET /api/budget/accounts/{id}/recipients/` | `Page<Record>` |
+
+Options: `ListBudgetAccountsOptions` (list), `ListOptions` (`get_*`). The `BudgetAccount` schema is wide (~63 fields) and shape-driven; use `SHAPE_BUDGET_ACCOUNTS_MINIMAL` for a compact default. The full `__gte` / `__lte` numeric-range filters are reachable via the `extra` map. The `recipients` envelope carries extra keys (`federal_account_symbol`, `fiscal_year`) alongside the pagination fields.
 
 ### GSA eLibrary (`gsa.rs`)
 

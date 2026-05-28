@@ -2,6 +2,7 @@
 //! methods on [`Client`](crate::Client) and exports its `*Options` builders.
 
 pub(crate) mod agencies;
+pub(crate) mod budget;
 pub(crate) mod contracts;
 pub(crate) mod entities;
 pub(crate) mod entity_subresources;
@@ -26,6 +27,7 @@ pub use agencies::{
     AgencyContractsOptions, GetAgencyOptions, ListAgenciesOptions,
     ListAgencyAwardingContractsOptions, ListAgencyFundingContractsOptions,
 };
+pub use budget::ListBudgetAccountsOptions;
 pub use contracts::ListContractsOptions;
 pub use entities::{GetEntityOptions, ListEntitiesOptions};
 pub use entity_subresources::EntitySubresourceOptions;

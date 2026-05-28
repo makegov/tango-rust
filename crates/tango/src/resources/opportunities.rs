@@ -3,8 +3,9 @@
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::{apply_pagination, push_opt, push_opt_bool, push_opt_u32};
+use crate::internal::{apply_pagination, push_opt, push_opt_bool, push_opt_u32, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
+use crate::resources::agencies::urlencoding;
 use crate::Record;
 use bon::Builder;
 use std::collections::BTreeMap;
@@ -445,6 +446,9 @@ pub struct ListGrantsOptions {
     /// CFDA number filter.
     #[builder(into)]
     pub cfda_number: Option<String>,
+    /// Grant identifier filter (exact match on `grant_id`).
+    #[builder(into)]
+    pub grant_id: Option<String>,
     /// Funding-categories filter (CSV).
     #[builder(into)]
     pub funding_categories: Option<String>,
@@ -496,6 +500,7 @@ impl ListGrantsOptions {
         push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(&mut q, "applicant_types", self.applicant_types.as_deref());
         push_opt(&mut q, "cfda_number", self.cfda_number.as_deref());
+        push_opt(&mut q, "grant_id", self.grant_id.as_deref());
         push_opt(
             &mut q,
             "funding_categories",
@@ -661,6 +666,66 @@ impl Client {
         PageStream::new(self.clone(), fetch)
     }
 
+    /// `GET /api/opportunities/{opportunity_id}/` — a single opportunity.
+    pub async fn get_opportunity(
+        &self,
+        opportunity_id: &str,
+        opts: Option<ListOptions>,
+    ) -> Result<Record> {
+        if opportunity_id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_opportunity: opportunity_id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/opportunities/{}/", urlencoding(opportunity_id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/notices/{notice_id}/` — a single notice.
+    pub async fn get_notice(&self, notice_id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if notice_id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_notice: notice_id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/notices/{}/", urlencoding(notice_id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/forecasts/{id}/` — a single procurement forecast.
+    pub async fn get_forecast(&self, id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_forecast: id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/forecasts/{}/", urlencoding(id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/grants/{grant_id}/` — a single grant opportunity.
+    pub async fn get_grant(&self, grant_id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if grant_id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_grant: grant_id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/grants/{}/", urlencoding(grant_id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
     /// `GET /api/opportunities/attachment-search/` — semantic search over
     /// the extracted text of opportunity attachments (SOWs, PWSs, J&As).
     ///
@@ -790,6 +855,7 @@ mod tests {
             .agency("9700")
             .applicant_types("11")
             .cfda_number("10.001")
+            .grant_id("GRANT-123")
             .funding_categories("AR")
             .funding_instruments("G")
             .opportunity_number("OPP-001")
@@ -802,10 +868,54 @@ mod tests {
         let q = opts.to_query();
         assert_eq!(get_q(&q, "applicant_types").as_deref(), Some("11"));
         assert_eq!(get_q(&q, "cfda_number").as_deref(), Some("10.001"));
+        assert_eq!(get_q(&q, "grant_id").as_deref(), Some("GRANT-123"));
         assert_eq!(get_q(&q, "funding_categories").as_deref(), Some("AR"));
         assert_eq!(get_q(&q, "funding_instruments").as_deref(), Some("G"));
         assert_eq!(get_q(&q, "opportunity_number").as_deref(), Some("OPP-001"));
         assert_eq!(get_q(&q, "status").as_deref(), Some("posted"));
+    }
+
+    #[tokio::test]
+    async fn get_grant_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_grant("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("grant_id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_opportunity_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client
+            .get_opportunity("", None)
+            .await
+            .expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("opportunity_id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_forecast_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_forecast("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_notice_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_notice("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("notice_id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
     }
 
     #[test]
