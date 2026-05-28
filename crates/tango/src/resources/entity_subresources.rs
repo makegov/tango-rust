@@ -200,6 +200,17 @@ impl Client {
         iterate_entity_subresource(self, uei.to_string(), "lcats", opts)
     }
 
+    /// `GET /api/entities/{uei}/budget-flows/` — funding-account budget flows
+    /// attributed to this entity. Returns a paginated list of funding-account
+    /// rows.
+    pub async fn get_entity_budget_flows(
+        &self,
+        uei: &str,
+        opts: Option<EntitySubresourceOptions>,
+    ) -> Result<Page<Record>> {
+        list_entity_subresource(self, uei, "budget-flows", opts.unwrap_or_default()).await
+    }
+
     /// `GET /api/entities/{uei}/metrics/{months}/{period_grouping}/` — rolling
     /// windowed metrics for this entity. Mirrors the signature of the sibling
     /// SDKs (Node / Python / Go).
@@ -343,6 +354,19 @@ mod tests {
         let client = Client::builder().api_key("x").build().expect("build");
         let err = client
             .list_entity_subawards("", EntitySubresourceOptions::default())
+            .await
+            .expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("uei")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_entity_budget_flows_empty_uei_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client
+            .get_entity_budget_flows("", None)
             .await
             .expect_err("must error");
         match err {

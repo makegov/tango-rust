@@ -1,9 +1,11 @@
 //! `GET /api/contracts/` — list and stream federal contract records.
 
 use crate::client::Client;
-use crate::error::Result;
-use crate::internal::{apply_pagination, first_non_empty, push_opt};
+use crate::error::{Error, Result};
+use crate::internal::{apply_pagination, first_non_empty, push_opt, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
+use crate::resources::agencies::urlencoding;
+use crate::resources::entity_subresources::EntitySubresourceOptions;
 use crate::Record;
 use bon::Builder;
 use std::collections::BTreeMap;
@@ -257,6 +259,58 @@ impl Client {
         Page::decode(&bytes)
     }
 
+    /// `GET /api/contracts/{key}/` — a single federal contract record.
+    pub async fn get_contract(&self, key: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if key.is_empty() {
+            return Err(Error::Validation {
+                message: "get_contract: key is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/contracts/{}/", urlencoding(key));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/contracts/{key}/subawards/` — subawards reported against a
+    /// single prime contract.
+    pub async fn list_contract_subawards(
+        &self,
+        key: &str,
+        opts: Option<EntitySubresourceOptions>,
+    ) -> Result<Page<Record>> {
+        if key.is_empty() {
+            return Err(Error::Validation {
+                message: "list_contract_subawards: key is required".into(),
+                response: None,
+            });
+        }
+        let q = opts.unwrap_or_default().to_query();
+        let path = format!("/api/contracts/{}/subawards/", urlencoding(key));
+        let bytes = self.get_bytes(&path, &q).await?;
+        Page::decode(&bytes)
+    }
+
+    /// `GET /api/contracts/{key}/transactions/` — raw transaction history
+    /// backing a single contract.
+    pub async fn list_contract_transactions(
+        &self,
+        key: &str,
+        opts: Option<EntitySubresourceOptions>,
+    ) -> Result<Page<Record>> {
+        if key.is_empty() {
+            return Err(Error::Validation {
+                message: "list_contract_transactions: key is required".into(),
+                response: None,
+            });
+        }
+        let q = opts.unwrap_or_default().to_query();
+        let path = format!("/api/contracts/{}/transactions/", urlencoding(key));
+        let bytes = self.get_bytes(&path, &q).await?;
+        Page::decode(&bytes)
+    }
+
     /// Stream every federal contract record matching `opts`. The stream follows
     /// `?cursor=` (or `?page=` fallback) on the server's `next` URL.
     ///
@@ -347,5 +401,41 @@ mod tests {
             get_q(&q, "shape").as_deref(),
             Some(crate::SHAPE_CONTRACTS_MINIMAL)
         );
+    }
+
+    #[tokio::test]
+    async fn get_contract_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_contract("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("key")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_contract_subawards_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client
+            .list_contract_subawards("", None)
+            .await
+            .expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("key")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_contract_transactions_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client
+            .list_contract_transactions("", None)
+            .await
+            .expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("key")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
     }
 }

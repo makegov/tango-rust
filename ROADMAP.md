@@ -15,7 +15,16 @@ This roadmap tracks the Rust SDK only. The goal is to stay closely aligned with 
 - [X] Sub-resource walks for IDVs, entities, agencies, vehicles.
 - [X] OTAs / OTIDVs, GSA eLibrary, IT Dashboard, protests, LCATs.
 
-## Next (0.2)
+## 0.2 (API sync to v4.6.9)
+
+- [X] Budget surface: `list_budget_accounts` / `iterate_budget_accounts`, `get_budget_account`, `get_budget_account_quarters`, `get_budget_account_recipients` (`/api/budget/accounts/`).
+- [X] Singleton detail GETs: `get_contract`, `get_opportunity`, `get_notice`, `get_forecast`, `get_grant`, `get_subaward`.
+- [X] Contract sub-routes: `list_contract_subawards`, `list_contract_transactions`.
+- [X] `get_entity_budget_flows` (`/api/entities/{uei}/budget-flows/`).
+- [X] `grant_id` filter on grants; `cage` filter on entities.
+- [X] Removed fabricated `get_idv_summary` / `list_idv_summary_awards` (paths never existed upstream).
+
+## Next
 
 - [ ] Edition 2024 migration once MSRV catches up (re-evaluate `rust-version` floor).
 - [ ] Optional `blocking` feature (sync facade over the async client, gated behind a Cargo feature).
