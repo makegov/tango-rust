@@ -1,9 +1,10 @@
 //! `GET /api/subawards/` — list and stream subaward records.
 
 use crate::client::Client;
-use crate::error::Result;
-use crate::internal::{apply_pagination, push_opt};
+use crate::error::{Error, Result};
+use crate::internal::{apply_pagination, push_opt, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
+use crate::resources::agencies::urlencoding;
 use crate::Record;
 use bon::Builder;
 use std::collections::BTreeMap;
@@ -112,6 +113,20 @@ impl Client {
         Page::decode(&bytes)
     }
 
+    /// `GET /api/subawards/{key}/` — a single subaward record.
+    pub async fn get_subaward(&self, key: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if key.is_empty() {
+            return Err(Error::Validation {
+                message: "get_subaward: key is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/subawards/{}/", urlencoding(key));
+        self.get_json::<Record>(&path, &q).await
+    }
+
     /// Stream every subaward matching `opts`.
     pub fn iterate_subawards(&self, opts: ListSubawardsOptions) -> PageStream<Record> {
         let opts = Arc::new(opts);
@@ -186,5 +201,15 @@ mod tests {
         let opts = ListSubawardsOptions::builder().extra(extra).build();
         let q = opts.to_query();
         assert_eq!(get_q(&q, "x").as_deref(), Some("y"));
+    }
+
+    #[tokio::test]
+    async fn get_subaward_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_subaward("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("key")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
     }
 }

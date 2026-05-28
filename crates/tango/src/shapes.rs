@@ -14,6 +14,13 @@ pub const DEFAULT_BASE_URL: &str = "https://tango.makegov.com";
 pub const SHAPE_CONTRACTS_MINIMAL: &str =
     "key,piid,award_date,recipient(display_name),description,total_contract_value";
 
+/// Default shape for
+/// [`Client::list_budget_accounts`](crate::Client::list_budget_accounts).
+pub const SHAPE_BUDGET_ACCOUNTS_MINIMAL: &str = concat!(
+    "federal_account_symbol,fiscal_year,agency_name,enacted_ba,",
+    "obligated_total,contract_obligated,contract_share_of_obligated_capped"
+);
+
 /// Default shape for [`Client::list_entities`](crate::Client::list_entities).
 pub const SHAPE_ENTITIES_MINIMAL: &str = "uei,legal_business_name,cage_code,business_types";
 

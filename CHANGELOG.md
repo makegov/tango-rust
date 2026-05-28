@@ -5,6 +5,23 @@ All notable changes to the `makegov-tango` and `makegov-tango-webhooks` crates a
 
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Sync to Tango API v4.6.9. Pre-1.0 (SemVer 0.x): the removals below are breaking but ship without a deprecation cycle.
+
+### Added
+
+- **Budget surface** (`budget.rs`): `list_budget_accounts` / `iterate_budget_accounts` (`GET /api/budget/accounts/`), `get_budget_account` (`GET /api/budget/accounts/{id}/`), `get_budget_account_quarters` (`GET /api/budget/accounts/{id}/quarters/`), `get_budget_account_recipients` (`GET /api/budget/accounts/{id}/recipients/`). New `ListBudgetAccountsOptions` builder and `SHAPE_BUDGET_ACCOUNTS_MINIMAL` shape constant.
+- Singleton detail GETs: `get_contract` (`GET /api/contracts/{key}/`), `get_opportunity`, `get_notice`, `get_forecast`, `get_grant`, `get_subaward`.
+- Contract sub-routes: `list_contract_subawards` (`GET /api/contracts/{key}/subawards/`), `list_contract_transactions` (`GET /api/contracts/{key}/transactions/`).
+- `get_entity_budget_flows` (`GET /api/entities/{uei}/budget-flows/`).
+- `grant_id` typed filter on `ListGrantsOptions`.
+- `cage` typed filter on `ListEntitiesOptions` (distinct from the existing `cage_code`; the server rejects setting both).
+
+### Removed
+
+- **Breaking**: `get_idv_summary` and `list_idv_summary_awards`. These hit `/api/idvs/{key}/summary/` and `/api/idvs/{key}/summary/awards/`, which have never existed in the Tango API (the server returns 404). Use `get_idv` with a comprehensive shape and `list_idv_awards` respectively.
+
 ## [0.1.0] — 2026-05-15
 
 First public release of the Tango Rust SDK.
