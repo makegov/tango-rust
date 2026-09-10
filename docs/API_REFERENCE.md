@@ -126,6 +126,37 @@ Options: `ListGsaElibraryContractsOptions`, `GetGsaElibraryContractOptions`.
 
 Options: `ListProtestsOptions`, `GetProtestOptions`. No `ordering` (server rejects it for this resource).
 
+### State & Local — SLED (`sled.rs`) — **Beta**
+
+State, local and education procurement: solicitations that never appear on SAM.gov because they were never federal. Coverage is partial and grows one jurisdiction at a time.
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_sled_opportunities(opts)` / `iterate_sled_opportunities(opts)` | `GET /api/sled/opportunities/` | `Page<Record>` / `PageStream<Record>` |
+| `get_sled_opportunity(id, opts)` | `GET /api/sled/opportunities/{opportunity_id}/` | `Record` |
+| `list_sled_opportunity_revisions(id, opts)` | `GET /api/sled/opportunities/{opportunity_id}/revisions/` | `Page<Record>` |
+| `get_sled_coverage()` | `GET /api/sled/opportunities/coverage/` | `Record` |
+| `list_sled_forecasts(opts)` / `iterate_sled_forecasts(opts)` | `GET /api/sled/forecasts/` | `Page<Record>` / `PageStream<Record>` |
+| `get_sled_forecast(id, opts)` | `GET /api/sled/forecasts/{forecast_id}/` | `Record` |
+
+Options: `ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, `ListSledForecastsOptions`, `GetSledOptions`. Shapes: `SHAPE_SLED_OPPORTUNITIES_MINIMAL` / `_COMPREHENSIVE`, `SHAPE_SLED_REVISIONS_MINIMAL`, `SHAPE_SLED_FORECASTS_MINIMAL` / `_COMPREHENSIVE`.
+
+**This data does not join to the federal data.** No UEI, no PIID, no agency-hierarchy key and no NAICS/PSC crosswalk; the `organization(*)` expand here is three strings, not the federal 7-key office payload.
+
+**Leaving both `status` and `active` unset returns open solicitations only.** Only about a fifth of the corpus is open, and a portal drops a closed solicitation rather than restating it, so the API defaults the list to `status=open`. Set `status` explicitly to page the whole corpus; `status = "open|unknown"` also reaches the standing rosters and dateless RFIs that `unknown` covers. `get_sled_opportunity` returns a solicitation whatever its status.
+
+`list_sled_opportunities` deliberately does **not** synthesize `status=open` client-side: doing so would make `active = Some(false)` unreachable, since `active=false` is the complement of open rather than an independent value. `active`, `has_documents` and `source_declared` are `Option<bool>` for the same reason — `false` has to be distinguishable from unset.
+
+**`status` is Tango's answer, not the portal's.** Derived from the portal's word, the deadline and the clock, and refreshed every fifteen minutes. The portal's own word is served as `source_status`, is frozen at last capture, and is **not** filterable — most of what it calls open already has a passed deadline.
+
+**Category scheme tagging is mid-migration**, so `naics` matches only the small tagged share. Use `category_code` to match a code under any scheme, including the untagged pre-migration strings.
+
+**`meta.attachment_count` can be lower than the length of `attachments`.** Some portals auto-generate a cover sheet alongside the real documents; it is listed and flagged `is_generated_summary` but excluded from the count and from `has_documents`. The count answers "does this record hold its solicitation package"; the array answers "what files exist". Attachment bodies are never served as a field.
+
+`get_sled_coverage` takes no parameters and is neither shaped nor paginated. **Call it before treating a per-state count as market size** — a thin result for a state is at least as likely to be a portal Tango does not read as a quiet market, and every state row carries all five status buckets whether or not they have rows.
+
+Forecasts carry **no liveness at all**: no deadline to have passed, so no `status`, no `active`, and no open-only default. `estimated_advertisement_date` is the start of the published quarter rather than a posting date, and `estimated_value(min,max,raw)` is parsed from a free-text award band — a band naming one number is a floor, so `max` is null.
+
 ### IT Dashboard (`itdashboard.rs`)
 
 | Method | Endpoint | Returns |
