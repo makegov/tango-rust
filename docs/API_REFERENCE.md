@@ -151,7 +151,9 @@ Options: `ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, 
 
 **Category scheme tagging is mid-migration**, so `naics` matches only the small tagged share. Use `category_code` to match a code under any scheme, including the untagged pre-migration strings.
 
-**`meta.attachment_count` can be lower than the length of `attachments`.** Some portals auto-generate a cover sheet alongside the real documents; it is listed and flagged `is_generated_summary` but excluded from the count and from `has_documents`. The count answers "does this record hold its solicitation package"; the array answers "what files exist". Attachment bodies are never served as a field.
+**`meta.attachment_count` can be lower than the length of `attachments`.** Some portals auto-generate a cover sheet alongside the real documents; it is listed and flagged `is_generated_summary` but excluded from the count and from `has_documents`. The count answers "does this record hold its solicitation package"; the array answers "what files exist".
+
+**The document body is `attachments(extracted_text)`, on a Small plan or above** (API 4.25.1+). It must be **named** — no `SHAPE_SLED_*` constant includes it and `attachments(*)` does not carry it, because the API resolves the body only for a caller who asked. Its key is **absent rather than null** whenever the text is not being served: below Small (withheld and named in `meta.upgrade_hints`), on a contested document, or where it could not be resolved. A **contested document never returns text at any plan**, because its stored bytes disagree with what the record advertised. Searching document text and reading it are separate — `search` matches inside attachment text on every plan and returns no fragment of it.
 
 `get_sled_coverage` takes no parameters and is neither shaped nor paginated. **Call it before treating a per-state count as market size** — a thin result for a state is at least as likely to be a portal Tango does not read as a quiet market, and every state row carries all five status buckets whether or not they have rows.
 

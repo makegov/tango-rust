@@ -520,6 +520,18 @@ impl Client {
     /// `GET /api/sled/opportunities/{opportunity_id}/` — one solicitation,
     /// whatever its status. The open-only default applies to the list endpoint,
     /// not here.
+    ///
+    /// A document's body is available as the `attachments(extracted_text)` leaf
+    /// on a Small plan or above, from API version 4.25.1. It must be NAMED — no
+    /// suggested shape includes it and `attachments(*)` does not carry it — and
+    /// its key is ABSENT rather than null whenever the text is not being served:
+    /// below Small (where it is withheld and named in `meta.upgrade_hints`), on a
+    /// contested document, or where it could not be resolved. A contested
+    /// document never returns text at any plan, because its stored bytes
+    /// disagree with what the record advertised.
+    ///
+    /// Searching document text and reading it are separate: `search` matches
+    /// inside attachment text on every plan and returns no fragment of it.
     pub async fn get_sled_opportunity(
         &self,
         opportunity_id: &str,
@@ -813,6 +825,27 @@ mod tests {
             shape.contains("changed_fields"),
             "SHAPE_SLED_REVISIONS_MINIMAL should carry `changed_fields`, which every plan can read: {shape}"
         );
+    }
+
+    /// The API resolves the document body only for a caller who names it, so a
+    /// suggested shape naming it would make every detail fetch pay for it.
+    #[test]
+    fn suggested_shapes_do_not_name_the_paid_document_body() {
+        for (name, shape) in [
+            (
+                "SHAPE_SLED_OPPORTUNITIES_MINIMAL",
+                crate::SHAPE_SLED_OPPORTUNITIES_MINIMAL,
+            ),
+            (
+                "SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE",
+                crate::SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE,
+            ),
+        ] {
+            assert!(
+                !shape.contains("extracted_text"),
+                "{name} must not name the Small-gated `extracted_text` leaf: {shape}"
+            );
+        }
     }
 
     #[test]

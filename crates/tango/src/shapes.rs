@@ -149,6 +149,15 @@ pub const SHAPE_SLED_OPPORTUNITIES_MINIMAL: &str = concat!(
 
 /// Suggested detail shape for
 /// [`Client::get_sled_opportunity`](crate::Client::get_sled_opportunity).
+///
+/// Deliberately does not name `attachments(extracted_text)`. The document body
+/// needs a Small plan and the API resolves it only for a caller who names the
+/// leaf, so a default shape carrying it would make every detail fetch pay for a
+/// document nobody asked to read. Ask for it explicitly instead:
+///
+/// ```text
+/// opportunity_id,attachments(name,size_bytes,extracted_text)
+/// ```
 pub const SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE: &str = concat!(
     "opportunity_id,solicitation_number,solicitation_type,",
     "solicitation_type_source,title,description,state,jurisdiction,agency,",
