@@ -17,6 +17,7 @@ pub(crate) mod opportunities;
 pub(crate) mod otas;
 pub(crate) mod protests;
 pub(crate) mod resolve_validate;
+pub(crate) mod sled;
 pub(crate) mod subawards;
 pub(crate) mod vehicle_subresources;
 pub(crate) mod vehicles;
@@ -51,6 +52,10 @@ pub use otas::{
     GetOTAOptions, GetOTIDVOptions, ListOTAsOptions, ListOTIDVAwardsOptions, ListOTIDVsOptions,
 };
 pub use protests::{GetProtestOptions, ListProtestsOptions};
+pub use sled::{
+    GetSledOptions, ListSledForecastsOptions, ListSledOpportunitiesOptions,
+    ListSledOpportunityRevisionsOptions,
+};
 pub use subawards::ListSubawardsOptions;
 pub use vehicle_subresources::{ListVehicleAwardeesOptions, ListVehicleOrdersOptions};
 pub use vehicles::{GetVehicleOptions, ListVehiclesOptions};

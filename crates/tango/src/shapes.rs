@@ -134,3 +134,65 @@ pub const SHAPE_ITDASHBOARD_INVESTMENTS_COMPREHENSIVE: &str = concat!(
     "investment_title,type_of_investment,part_of_it_portfolio,",
     "updated_time,url",
 );
+
+/// Suggested list shape for
+/// [`Client::list_sled_opportunities`](crate::Client::list_sled_opportunities).
+///
+/// `description` is detail-only on the API — its median is around 550
+/// characters and its tail runs past 120,000 — so it is deliberately absent
+/// here. Name it explicitly, or pass `verbose=true` via `extra`.
+pub const SHAPE_SLED_OPPORTUNITIES_MINIMAL: &str = concat!(
+    "opportunity_id,solicitation_number,solicitation_type,title,state,",
+    "jurisdiction,agency,status,status_reason,posted_date,response_deadline,",
+    "source_url,has_documents,first_seen_at,last_change_seen_at",
+);
+
+/// Suggested detail shape for
+/// [`Client::get_sled_opportunity`](crate::Client::get_sled_opportunity).
+///
+/// Deliberately does not name `attachments(extracted_text)`. The document body
+/// needs a Small plan and the API resolves it only for a caller who names the
+/// leaf, so a default shape carrying it would make every detail fetch pay for a
+/// document nobody asked to read. Ask for it explicitly instead:
+///
+/// ```text
+/// opportunity_id,attachments(name,size_bytes,extracted_text)
+/// ```
+pub const SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE: &str = concat!(
+    "opportunity_id,solicitation_number,solicitation_type,",
+    "solicitation_type_source,title,description,state,jurisdiction,agency,",
+    "status,status_reason,status_computed_at,source_status,source_url,",
+    "posted_date,response_deadline,response_deadline_original,",
+    "bid_opening_date,bid_opening_raw,category_codes,has_documents,",
+    "first_seen_at,last_seen_at,last_change_seen_at,",
+    "organization(*),contact(*),meta(*),attachments(*),revisions(*)",
+);
+
+/// Suggested shape for
+/// [`Client::list_sled_opportunity_revisions`](crate::Client::list_sled_opportunity_revisions).
+///
+/// `changes` — the per-field before and after — is omitted on purpose: it needs
+/// a Small plan, so naming it in a default shape would 403 a Free caller on a
+/// field they never asked to gate. `changed_fields` names what moved at every
+/// plan.
+pub const SHAPE_SLED_REVISIONS_MINIMAL: &str =
+    "observed_at,sequence,kind,changed_fields,source_declared";
+
+/// Suggested list shape for
+/// [`Client::list_sled_forecasts`](crate::Client::list_sled_forecasts).
+pub const SHAPE_SLED_FORECASTS_MINIMAL: &str = concat!(
+    "forecast_id,state,agency,title,estimated_advertisement_date,",
+    "estimated_advertisement_raw,procurement_category,procurement_method,",
+    "contract_number,incumbent_name,source_url,estimated_value(*)",
+);
+
+/// Suggested detail shape for
+/// [`Client::get_sled_forecast`](crate::Client::get_sled_forecast).
+pub const SHAPE_SLED_FORECASTS_COMPREHENSIVE: &str = concat!(
+    "forecast_id,state,agency,title,description,",
+    "estimated_advertisement_date,estimated_advertisement_raw,",
+    "procurement_category,procurement_method,contract_term,contract_number,",
+    "incumbent_name,mbe_dbe_goal,delivery_location,source_url,source_status,",
+    "has_documents,first_seen_at,last_seen_at,",
+    "organization(*),contact(*),estimated_value(*)",
+);

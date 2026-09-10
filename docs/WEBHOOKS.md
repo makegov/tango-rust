@@ -202,6 +202,7 @@ Client-side validation rejects empty `name` or `callback_url` on `create_webhook
 - `filters` must be a non-empty JSON object. Client-side validation rejects `null` or `{}`.
 - `endpoint` is required when the account has multiple endpoints; single-endpoint accounts can omit it (the server auto-resolves).
 - `query_type` and `filters` are **read-only after creation**; `update_webhook_alert` only allows `name`, `frequency`, `cron_expression`, `is_active`.
+- **A record merely reaching its date fires nothing — except `sled_opportunity`.** An exclusion passing its termination date, or a DIBBS solicitation passing its close date, emits no event: open/closed and in-force are derived at query time, so no stored row changes. `sled_opportunity` is the one exception — a state solicitation's liveness is a stored `status` column Tango recomputes every fifteen minutes rather than deriving per request, so a deadline passing **is** a write and `alerts.sled_opportunity.match` can follow it. There is no `sled_forecast` query type (a forecast has no deadline, so nothing transitions), and SLED revisions and attachments are not separately alertable: subscribe to `sled_opportunity` and filter on `change_seen_after` or `revision_kind`.
 
 ### Example: create and test an endpoint
 
