@@ -128,6 +128,27 @@ Records come from GAO, the U.S. Court of Federal Claims and the SBA Office of He
 
 Options: `ListProtestsOptions`, `GetProtestOptions`. No `ordering` (server rejects it for this resource).
 
+### Contract appeals (`contract_appeals.rs`)
+
+Contract Disputes Act appeal decisions from the Civilian Board of Contract Appeals (CBCA) and the Armed Services Board of Contract Appeals (ASBCA).
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_contract_appeals(opts)` / `iterate_contract_appeals(opts)` | `GET /api/contract_appeals/` | `Page<Record>` / `PageStream<Record>` |
+| `get_contract_appeal(uuid, opts)` | `GET /api/contract_appeals/{uuid}/` | **`ContractAppealRecord`** (typed) |
+
+Options: `ListContractAppealsOptions`, `GetContractAppealOptions`. Shape: `SHAPE_CONTRACT_APPEALS_MINIMAL`.
+
+Filters: `search`, `board` (`cbca` / `asbca`), `docket`, `appellant`, `judge`, `decision_type`, `decision_date_after` / `_before`, `listed`, `document_id`. Ordering: `decision_date` (the server's default is `-decision_date`), `appellant`, `first_listed_at`, `rank` — and `rank` is only meaningful alongside a non-empty `search`.
+
+**These are not bid protests.** An appeal is a dispute under a contract already awarded — a claim, a termination, a delay, a defective specification — decided by a board rather than by GAO or the Court of Federal Claims. A company can appear in both corpora and nothing joins the two, so an appeals search is not a substitute for a [protests](#protests-protestsrs) search or the reverse.
+
+**One decision can resolve several dockets.** `docket_numbers` is a list for that reason, and the `docket` filter matches any member of it. `docket_raw`, `decision_date_raw` and `decision_type_raw` are the board's own strings, kept beside the parsed values; `decision_date_repaired` flags a date reconstructed rather than parsed straight through.
+
+**`listed` is shelf presence, not validity.** It says the decision is still on a current board listing page. A board rotating its listings does not vacate the decisions that fall off them.
+
+**The decision body is `decision_text`, on an Enterprise plan.** Below Enterprise the key is **absent rather than null**, so `None` means "not served to this caller" and never "this decision has no text" — `text_status` and `text_char_count` describe the text at every plan. `SHAPE_CONTRACT_APPEALS_MINIMAL` deliberately does not name it, so a list page never pays for text most callers are not served.
+
 ### State & Local — SLED (`sled.rs`) — **Beta**
 
 State, local and education procurement: solicitations that never appear on SAM.gov because they were never federal. Coverage is partial and grows one jurisdiction at a time.
