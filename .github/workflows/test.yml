@@ -22,6 +22,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    # rust-toolchain.toml pins `stable`, which rustup prefers over the toolchain the action installs; this makes the matrix entry the one that actually runs.
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
+
     steps:
       - uses: actions/checkout@v4
 
