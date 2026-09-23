@@ -7,13 +7,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Pre-1.0 (SemVer 0.x): the removal under **Breaking** ships without a deprecation cycle.
+Pre-1.0 (SemVer 0.x): the removals under **Breaking** ship without a deprecation cycle.
 
 ### `makegov-tango`
 
 #### Breaking
 
 - **Removed `get_idv_summary` and `list_idv_summary_awards`.** They called `/api/idvs/{key}/summary/` and `/api/idvs/{key}/summary/awards/`, which have never existed in the Tango API, so every call returned 404. Use `get_idv` with `SHAPE_IDVS_COMPREHENSIVE` and `list_idv_awards` instead.
+- **Removed `search_opportunity_attachments` and `SearchOpportunityAttachmentsOptions`.** The API retired `/api/opportunities/attachment-search/`: it returns 404 for every query and keeps the route only so a missing `q` still gets its 400. `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit.
 
 #### Added
 
@@ -48,10 +49,6 @@ Pre-1.0 (SemVer 0.x): the removal under **Breaking** ships without a deprecation
 #### Changed
 
 - **`SHAPE_SLED_OPPORTUNITIES_MINIMAL` and `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` now include `delisted_at`**, matching the API's own default shapes. It is when the portal stopped listing a solicitation before its deadline, and it is what `status_reason = "delisted"` refers to.
-
-#### Deprecated
-
-- **`search_opportunity_attachments`.** The API retired `/api/opportunities/attachment-search/`: it returns 404 for every query and keeps the route only so a missing `q` still gets its 400. `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit. The method will be removed in a later release.
 
 #### Fixed
 

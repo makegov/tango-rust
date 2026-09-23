@@ -90,11 +90,10 @@ Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions
 | `get_forecast(id, opts)` | `GET /api/forecasts/{id}/` | `Record` |
 | `list_grants(opts)` / `iterate_*` | `GET /api/grants/` | `Page<Record>` / `PageStream<Record>` |
 | `get_grant(grant_id, opts)` | `GET /api/grants/{grant_id}/` | `Record` |
-| `search_opportunity_attachments(opts)` *(deprecated)* | `GET /api/opportunities/attachment-search/` | `Record` |
 
-Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`, `SearchOpportunityAttachmentsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. `ListGrantsOptions` exposes a typed `grant_id` filter; `ListNoticesOptions` adds `notice_id`, `department` and `office`; `ListOpportunitiesOptions` adds `opportunity_id`; `ListForecastsOptions` adds `id`.
+Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. `ListGrantsOptions` exposes a typed `grant_id` filter; `ListNoticesOptions` adds `notice_id`, `department` and `office`; `ListOpportunitiesOptions` adds `opportunity_id`; `ListForecastsOptions` adds `id`.
 
-**`search_opportunity_attachments` is deprecated.** The API retired `/api/opportunities/attachment-search/`: it returns 404 for every query and keeps the route only so a missing `q` still gets its 400. `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit.
+**There is no attachment-search method.** The API retired `/api/opportunities/attachment-search/` (it returns 404 for every query). `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit.
 
 ### OTAs / OTIDVs (`otas.rs`)
 

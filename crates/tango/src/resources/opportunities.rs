@@ -3,7 +3,7 @@
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::{apply_pagination, push_opt, push_opt_bool, push_opt_u32, ListOptions};
+use crate::internal::{apply_pagination, push_opt, push_opt_bool, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
 use crate::resources::agencies::urlencoding;
 use crate::Record;
@@ -574,42 +574,6 @@ impl ListGrantsOptions {
 }
 
 // ---------------------------------------------------------------------------
-// Opportunity attachment search
-// ---------------------------------------------------------------------------
-
-/// Options for [`Client::search_opportunity_attachments`], which targets a retired endpoint.
-///
-/// `q` is required; an empty `q` causes the call to return
-/// [`Error::Validation`] before any network request.
-#[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct SearchOpportunityAttachmentsOptions {
-    /// Natural-language query. Required.
-    #[builder(into)]
-    pub q: Option<String>,
-    /// Maximum number of matches to return. `None` / `0` means
-    /// "use the server default".
-    #[builder(into)]
-    pub top_k: Option<u32>,
-    /// When true, returns the matched attachment text alongside metadata.
-    /// Defaults to false to keep responses small.
-    #[builder(default)]
-    pub include_extracted_text: bool,
-}
-
-impl SearchOpportunityAttachmentsOptions {
-    fn to_query(&self) -> Vec<(String, String)> {
-        let mut q = Vec::new();
-        push_opt(&mut q, "q", self.q.as_deref());
-        push_opt_u32(&mut q, "top_k", self.top_k);
-        if self.include_extracted_text {
-            q.push(("include_extracted_text".into(), "true".into()));
-        }
-        q
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Client methods
 // ---------------------------------------------------------------------------
 
@@ -748,30 +712,6 @@ impl Client {
         opts.unwrap_or_default().apply(&mut q);
         let path = format!("/api/grants/{}/", urlencoding(grant_id));
         self.get_json::<Record>(&path, &q).await
-    }
-
-    /// `GET /api/opportunities/attachment-search/` — retired semantic search over opportunity attachments.
-    ///
-    /// The API retired this endpoint: it now returns 404 for every query, and keeps the route only so a missing `q` still gets its 400.
-    /// Search attachment text through the `search` filter on [`Client::list_opportunities`] instead.
-    /// Returns [`Error::Validation`] when `opts.q` is missing or empty.
-    #[deprecated(
-        since = "0.2.0",
-        note = "the API retired /api/opportunities/attachment-search/ and returns 404 for every query; use list_opportunities with `search`"
-    )]
-    pub async fn search_opportunity_attachments(
-        &self,
-        opts: SearchOpportunityAttachmentsOptions,
-    ) -> Result<Record> {
-        if opts.q.as_deref().filter(|s| !s.is_empty()).is_none() {
-            return Err(Error::Validation {
-                message: "search_opportunity_attachments: q is required".into(),
-                response: None,
-            });
-        }
-        let q = opts.to_query();
-        self.get_json::<Record>("/api/opportunities/attachment-search/", &q)
-            .await
     }
 }
 
@@ -943,57 +883,6 @@ mod tests {
         let err = client.get_notice("", None).await.expect_err("must error");
         match err {
             Error::Validation { message, .. } => assert!(message.contains("notice_id")),
-            other => panic!("expected Validation, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn attachment_search_emits_all_flags() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("statement of work cloud migration")
-            .top_k(5u32)
-            .include_extracted_text(true)
-            .build();
-        let q = opts.to_query();
-        assert_eq!(
-            get_q(&q, "q").as_deref(),
-            Some("statement of work cloud migration")
-        );
-        assert_eq!(get_q(&q, "top_k").as_deref(), Some("5"));
-        assert_eq!(get_q(&q, "include_extracted_text").as_deref(), Some("true"));
-    }
-
-    #[test]
-    fn attachment_search_top_k_zero_omitted() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("test query")
-            .top_k(0u32)
-            .build();
-        let q = opts.to_query();
-        assert!(!q.iter().any(|(k, _)| k == "top_k"));
-    }
-
-    #[test]
-    fn attachment_search_extracted_text_omitted_when_false() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("test")
-            .build();
-        let q = opts.to_query();
-        assert!(!q.iter().any(|(k, _)| k == "include_extracted_text"));
-    }
-
-    #[tokio::test]
-    #[allow(deprecated)]
-    async fn search_opportunity_attachments_empty_q_returns_validation() {
-        let client = Client::builder().api_key("x").build().expect("build");
-        let err = client
-            .search_opportunity_attachments(SearchOpportunityAttachmentsOptions::default())
-            .await
-            .expect_err("must error");
-        match err {
-            Error::Validation { message, .. } => {
-                assert!(message.contains('q'));
-            }
             other => panic!("expected Validation, got {other:?}"),
         }
     }

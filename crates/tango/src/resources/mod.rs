@@ -59,7 +59,6 @@ pub use metrics::{
 };
 pub use opportunities::{
     ListForecastsOptions, ListGrantsOptions, ListNoticesOptions, ListOpportunitiesOptions,
-    SearchOpportunityAttachmentsOptions,
 };
 pub use otas::{
     GetOTAOptions, GetOTIDVOptions, ListOTAsOptions, ListOTIDVAwardsOptions, ListOTIDVsOptions,

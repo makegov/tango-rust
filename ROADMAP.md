@@ -22,7 +22,7 @@ This roadmap tracks the Rust SDK only. The goal is to stay closely aligned with 
 - [X] Singleton detail GETs: `get_contract`, `get_opportunity`, `get_notice`, `get_forecast`, `get_grant`, `get_subaward`; contract sub-routes `list_contract_subawards` / `list_contract_transactions`.
 - [X] Filter parity with the live API on every list endpoint the SDK covers.
 - [X] State, local and education (SLED) procurement; contract appeals.
-- [X] Removed the IDV summary methods, whose paths never existed upstream.
+- [X] Removed the IDV summary methods, whose paths never existed upstream, and `search_opportunity_attachments`, whose endpoint the API retired.
 
 ## Next
 
@@ -31,7 +31,6 @@ This roadmap tracks the Rust SDK only. The goal is to stay closely aligned with 
 - [ ] Newtype identifiers for `Uei`, `EntityId`, `AgencyId`, etc. (compile-time safety, no string typo bugs).
 - [ ] Comprehensive integration tests against the live Tango API.
 - [ ] Typed structs for remaining lookup/metric endpoints (NAICS, PSC, entity metrics).
-- [ ] Remove the deprecated `search_opportunity_attachments` (the API retired its endpoint).
 
 ## Later (0.3)
 
