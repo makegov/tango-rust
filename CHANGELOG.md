@@ -11,6 +11,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 #### Added
 
+- **Contract appeals — CBCA and ASBCA decisions** (Tango API 4.26.0). `resources/contract_appeals.rs` adds `list_contract_appeals` / `get_contract_appeal` / `iterate_contract_appeals`, two `bon`-derived options builders (`ListContractAppealsOptions`, `GetContractAppealOptions`), the typed `models::ContractAppealRecord`, and `SHAPE_CONTRACT_APPEALS_MINIMAL`. Every filter the endpoint accepts is a named field: `search`, `board`, `docket`, `appellant`, `judge`, `decision_type`, `decision_date_after` / `_before`, `listed`, `document_id`, plus `ordering` over `decision_date` (the server's default is `-decision_date`), `appellant`, `first_listed_at` and `rank`.
+
+  **These are Contract Disputes Act appeals, not bid protests.** An appeal is a dispute under a contract already awarded, decided by a board; a protest challenges the award itself and stays on `list_protests`. A company can appear in both corpora and nothing joins the two.
+
+  **`decision_text` needs an Enterprise plan, and below it the key is absent rather than null** — so `ContractAppealRecord::decision_text == None` means "not served to this caller", never "this decision has no text". `text_status` and `text_char_count` describe the text at every plan, and `SHAPE_CONTRACT_APPEALS_MINIMAL` deliberately does not name the body, so a list page never pays for text most callers are not served. `minimal_shape_does_not_name_the_paid_decision_text` pins the constant.
+
+  Every field on `ContractAppealRecord` is `Option<...>` because an unshaped list response carries only a core subset — an unrequested field is absent, not null, and `serde(skip_serializing_if)` keeps a round-trip from reintroducing it. `listed` is `Option<bool>` on the options builder for the same reason `active` is on SLED: `false` has to reach the server as a filter value rather than collapsing into the default.
+
 - **`naics_code` on `ListProtestsOptions`.** Filters protests by the NAICS code at issue, which only SBA OHA size and NAICS appeals carry; GAO and COFC records never match it.
 
 - **`attachments(extracted_text)` — SLED document bodies on the Small plan and above** (Tango API 4.25.1; parity with tango-python, tango-node and tango-go). This SDK returns `Record`, so the leaf needs no type change — what it needed was saying so. Documented on `get_sled_opportunity`, on `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` and in `docs/API_REFERENCE.md`: the leaf must be **named** (no `SHAPE_SLED_*` constant includes it, and `attachments(*)` does not carry it, because the API resolves the body only for a caller who asked); the **key is absent rather than null** when the text is not being served; and a **contested document never returns text at any plan**. `suggested_shapes_do_not_name_the_paid_document_body` pins the constants. Searching document text stays ungated on every plan and returns no fragment of it.
@@ -34,7 +42,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 #### Documentation
 
+- New **Contract appeals** section in `docs/API_REFERENCE.md`, and a row in the README method table. Both say what the resource is not: an appeal is a dispute under an awarded contract, so an appeals search is not a substitute for a protests search or the reverse.
 - New **State & Local — SLED** section in `docs/API_REFERENCE.md` covering all six methods and both defaults that surprise people.
+- `docs/WEBHOOKS.md` alert semantics names `contract_appeal` / `alerts.contract_appeal.match` and says it overlaps neither `contract` nor the protest corpus. The SDK models `query_type` and `event_types` as free-form strings, so this is a documentation change rather than a new constant.
 - `docs/WEBHOOKS.md` alert semantics gained the date-lapse rule and its one exception. An exclusion or DIBBS solicitation reaching its date fires nothing, because open/closed is derived at query time — but `alerts.sled_opportunity.match` **does** fire on a closing, since SLED liveness is a stored column a fifteen-minute sweep writes.
 
 ## [0.1.0] — 2026-05-15

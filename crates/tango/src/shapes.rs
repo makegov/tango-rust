@@ -41,6 +41,16 @@ pub const SHAPE_NOTICES_MINIMAL: &str = "notice_id,title,solicitation_number,pos
 pub const SHAPE_PROTESTS_MINIMAL: &str =
     "case_id,case_number,title,source_system,outcome,filed_date";
 
+/// Suggested list shape for
+/// [`Client::list_contract_appeals`](crate::Client::list_contract_appeals).
+///
+/// Deliberately does not name `decision_text`. The decision body needs an Enterprise plan, so a suggested shape carrying it would make every list page pay for text most callers are not served.
+/// Name it explicitly when you are entitled to it; `text_status` and `text_char_count` describe the text at every plan.
+pub const SHAPE_CONTRACT_APPEALS_MINIMAL: &str = concat!(
+    "uuid,board,docket_numbers,decision_date,appellant,judge,",
+    "decision_type,url,listed",
+);
+
 /// Default shape for [`Client::list_grants`](crate::Client::list_grants).
 pub const SHAPE_GRANTS_MINIMAL: &str = "grant_id,opportunity_number,title,status(*),agency_code";
 
