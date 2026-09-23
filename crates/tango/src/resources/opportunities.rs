@@ -91,6 +91,10 @@ pub struct ListOpportunitiesOptions {
     #[builder(into)]
     pub solicitation_number: Option<String>,
 
+    /// Opportunity ID filter.
+    #[builder(into)]
+    pub opportunity_id: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -150,6 +154,7 @@ impl ListOpportunitiesOptions {
             self.response_deadline_before.as_deref(),
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "opportunity_id", self.opportunity_id.as_deref());
         push_opt(&mut q, "set_aside", self.set_aside.as_deref());
         push_opt(
             &mut q,
@@ -232,6 +237,18 @@ pub struct ListNoticesOptions {
     #[builder(into)]
     pub solicitation_number: Option<String>,
 
+    /// Notice ID filter.
+    #[builder(into)]
+    pub notice_id: Option<String>,
+
+    /// Department filter: a name, abbreviation or code, with `|` for multiple values.
+    #[builder(into)]
+    pub department: Option<String>,
+
+    /// Contracting office filter: a name, abbreviation or code, with `|` for multiple values.
+    #[builder(into)]
+    pub office: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -275,6 +292,9 @@ impl ListNoticesOptions {
             self.response_deadline_before.as_deref(),
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "office", self.office.as_deref());
+        push_opt(&mut q, "department", self.department.as_deref());
+        push_opt(&mut q, "notice_id", self.notice_id.as_deref());
         push_opt(&mut q, "set_aside", self.set_aside.as_deref());
         push_opt(
             &mut q,
@@ -361,6 +381,10 @@ pub struct ListForecastsOptions {
     #[builder(into)]
     pub status: Option<String>,
 
+    /// Forecast ID filter.
+    #[builder(into)]
+    pub id: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -398,6 +422,7 @@ impl ListForecastsOptions {
         );
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "id", self.id.as_deref());
         push_opt(&mut q, "source_system", self.source_system.as_deref());
         push_opt(&mut q, "status", self.status.as_deref());
         for (k, v) in &self.extra {
@@ -552,8 +577,7 @@ impl ListGrantsOptions {
 // Opportunity attachment search
 // ---------------------------------------------------------------------------
 
-/// Options for [`Client::search_opportunity_attachments`] — semantic search
-/// over the extracted text of opportunity attachments (SOWs, PWSs, J&As).
+/// Options for [`Client::search_opportunity_attachments`], which targets a retired endpoint.
 ///
 /// `q` is required; an empty `q` causes the call to return
 /// [`Error::Validation`] before any network request.
@@ -726,10 +750,15 @@ impl Client {
         self.get_json::<Record>(&path, &q).await
     }
 
-    /// `GET /api/opportunities/attachment-search/` — semantic search over
-    /// the extracted text of opportunity attachments (SOWs, PWSs, J&As).
+    /// `GET /api/opportunities/attachment-search/` — retired semantic search over opportunity attachments.
     ///
+    /// The API retired this endpoint: it now returns 404 for every query, and keeps the route only so a missing `q` still gets its 400.
+    /// Search attachment text through the `search` filter on [`Client::list_opportunities`] instead.
     /// Returns [`Error::Validation`] when `opts.q` is missing or empty.
+    #[deprecated(
+        since = "0.2.0",
+        note = "the API retired /api/opportunities/attachment-search/ and returns 404 for every query; use list_opportunities with `search`"
+    )]
     pub async fn search_opportunity_attachments(
         &self,
         opts: SearchOpportunityAttachmentsOptions,
@@ -954,6 +983,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[allow(deprecated)]
     async fn search_opportunity_attachments_empty_q_returns_validation() {
         let client = Client::builder().api_key("x").build().expect("build");
         let err = client
@@ -966,5 +996,25 @@ mod tests {
             }
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn identifier_and_org_filters_emit() {
+        let q = ListNoticesOptions::builder()
+            .notice_id("n1")
+            .department("DOD")
+            .office("W912")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "notice_id").as_deref(), Some("n1"));
+        assert_eq!(get_q(&q, "department").as_deref(), Some("DOD"));
+        assert_eq!(get_q(&q, "office").as_deref(), Some("W912"));
+        let q = ListOpportunitiesOptions::builder()
+            .opportunity_id("o1")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "opportunity_id").as_deref(), Some("o1"));
+        let q = ListForecastsOptions::builder().id("42").build().to_query();
+        assert_eq!(get_q(&q, "id").as_deref(), Some("42"));
     }
 }

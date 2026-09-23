@@ -117,6 +117,10 @@ pub struct ListOTAsOptions {
     #[builder(into)]
     pub ordering: Option<String>,
 
+    /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
+    #[builder(into)]
+    pub key: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -138,6 +142,7 @@ impl ListOTAsOptions {
         push_opt(&mut q, "awarding_agency", self.awarding_agency.as_deref());
         push_opt(&mut q, "funding_agency", self.funding_agency.as_deref());
         push_opt(&mut q, "piid", self.piid.as_deref());
+        push_opt(&mut q, "key", self.key.as_deref());
         push_opt(&mut q, "recipient", self.recipient.as_deref());
         push_opt(&mut q, "uei", self.uei.as_deref());
         push_opt(&mut q, "fiscal_year", self.fiscal_year.as_deref());
@@ -302,6 +307,10 @@ pub struct ListOTIDVsOptions {
     #[builder(into)]
     pub ordering: Option<String>,
 
+    /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
+    #[builder(into)]
+    pub key: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -323,6 +332,7 @@ impl ListOTIDVsOptions {
         push_opt(&mut q, "awarding_agency", self.awarding_agency.as_deref());
         push_opt(&mut q, "funding_agency", self.funding_agency.as_deref());
         push_opt(&mut q, "piid", self.piid.as_deref());
+        push_opt(&mut q, "key", self.key.as_deref());
         push_opt(&mut q, "recipient", self.recipient.as_deref());
         push_opt(&mut q, "uei", self.uei.as_deref());
         push_opt(&mut q, "fiscal_year", self.fiscal_year.as_deref());
@@ -486,6 +496,10 @@ pub struct ListOTIDVAwardsOptions {
     #[builder(into)]
     pub ordering: Option<String>,
 
+    /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
+    #[builder(into)]
+    pub key: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -507,6 +521,7 @@ impl ListOTIDVAwardsOptions {
         push_opt(&mut q, "awarding_agency", self.awarding_agency.as_deref());
         push_opt(&mut q, "funding_agency", self.funding_agency.as_deref());
         push_opt(&mut q, "piid", self.piid.as_deref());
+        push_opt(&mut q, "key", self.key.as_deref());
         push_opt(&mut q, "recipient", self.recipient.as_deref());
         push_opt(&mut q, "uei", self.uei.as_deref());
         push_opt(&mut q, "fiscal_year", self.fiscal_year.as_deref());
@@ -810,5 +825,18 @@ mod tests {
             }
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn ota_family_key_filter_emits() {
+        let q = ListOTAsOptions::builder().key("K1").build().to_query();
+        assert_eq!(get_q(&q, "key").as_deref(), Some("K1"));
+        let q = ListOTIDVsOptions::builder().key("K2").build().to_query();
+        assert_eq!(get_q(&q, "key").as_deref(), Some("K2"));
+        let q = ListOTIDVAwardsOptions::builder()
+            .key("K3")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "key").as_deref(), Some("K3"));
     }
 }

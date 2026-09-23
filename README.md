@@ -6,14 +6,14 @@
 
 Official, async-first Rust SDK for the [Tango API](https://tango.makegov.com) — federal contracts, IDVs, entities, opportunities, grants, vehicles, and more, with dynamic response shaping so you fetch only the fields you need.
 
-> **In development — v0.1.0.** Not yet at sibling-SDK parity. The public API may shift before v1.0.0. Pin to a specific tag if you depend on this in production.
+> **Pre-1.0 — v0.2.0.** The resource surface now tracks the sibling SDKs endpoint for endpoint, but the public API may still shift before v1.0.0. Pin to a specific version if you depend on this in production.
 
-Sibling SDKs (`tango-node`, `tango-python`) are at v1.0.0; `tango-go` is at v0.1.0 with the same surface. This Rust port ships the full transport, error model, retry / rate-limit handling, webhook signing (in the separate `tango-webhooks` crate), and the ~75-method API surface. Same `0.x → 1.0` graduation logic as Go: the transport and types are stable; the surface stabilizes once it matches sibling parity.
+The sibling SDKs are `tango-python`, `tango-node` and `tango-go`. This Rust port ships the full transport, error model, retry / rate-limit handling, webhook signing (in the separate `tango-webhooks` crate), and the resource-method surface. Same `0.x → 1.0` graduation logic as Go: the transport and types are stable; the surface stabilizes once it has been verified against the live API alongside the siblings.
 
 ## Features
 
 - **Async-first** — built on `tokio` + `reqwest`. One runtime, clean `futures::Stream`-based pagination.
-- **Dynamic response shaping** — request exactly the fields you need via 21 built-in [`SHAPE_*`](https://docs.rs/makegov-tango/latest/tango/#constants) presets or a custom comma-separated field list.
+- **Dynamic response shaping** — request exactly the fields you need via 34 built-in [`SHAPE_*`](https://docs.rs/makegov-tango/latest/tango/#constants) presets or a custom comma-separated field list.
 - **Typed errors** — single [`Error`](https://docs.rs/makegov-tango/latest/tango/enum.Error.html) enum with rich payload variants (`Auth`, `NotFound`, `Validation`, `RateLimit`, `Timeout`, `Api`, `Transport`, `Decode`, `Build`). Programmatic dispatch via `err.status()` and `err.is_retryable()`.
 - **Smart retries** — automatic backoff on 5xx / 408 / 429 / transport errors, honoring the server's `Retry-After` header.
 - **Compile-time-checked client builder** — via [`bon`](https://docs.rs/bon). Missing `api_key`? Won't compile.
@@ -25,10 +25,10 @@ Sibling SDKs (`tango-node`, `tango-python`) are at v1.0.0; `tango-go` is at v0.1
 
 ```toml
 [dependencies]
-makegov-tango = "0.1"
+makegov-tango = "0.2"
 
 # Optional: webhook signing for receivers
-makegov-tango-webhooks = "0.1"
+makegov-tango-webhooks = "0.2"
 ```
 
 Crates publish under the `makegov-` prefix on crates.io; Rust imports stay short — `use tango::Client;` and `use tango_webhooks::verify;` — thanks to a `[lib] name` shim in each crate (same pattern as the `aws-sdk-*` family).
@@ -116,7 +116,7 @@ let client = Client::builder()
 
 ### Dynamic response shaping
 
-Every list and get endpoint accepts a `shape` parameter selecting which fields the API returns. The SDK ships 21 presets matching the Node, Python, and Go SDKs:
+Every list and get endpoint accepts a `shape` parameter selecting which fields the API returns. The SDK ships 34 presets matching the Node, Python, and Go SDKs:
 
 ```rust,no_run
 # use tango::{Client, ListContractsOptions, SHAPE_CONTRACTS_MINIMAL};
@@ -241,28 +241,34 @@ match client.get_agency("9700", None).await {
 
 ## API methods
 
-The SDK exposes ~75 methods on `Client` covering every endpoint in the sibling SDKs. The most-used 15 are listed here; the **full method-by-method reference lives in [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md)**.
+The SDK exposes a method on `Client` for every public endpoint the sibling SDKs cover. The main resources are listed here; the **full method-by-method reference lives in [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md)**.
 
 | Resource | List | Get | Iterate |
 | ---- | ---- | ---- | ---- |
 | Agencies | `list_agencies` | `get_agency` *(typed: `AgencyRecord`)* | — |
-| Contracts | `list_contracts` | — | `iterate_contracts` |
+| Contracts | `list_contracts` | `get_contract` | `iterate_contracts` |
 | Entities | `list_entities` | `get_entity` | `iterate_entities` |
 | IDVs | `list_idvs` | `get_idv` | `iterate_idvs` |
 | Vehicles | `list_vehicles` | `get_vehicle` | `iterate_vehicles` |
 | OTAs | `list_otas` | `get_ota` | `iterate_otas` |
 | OTIDVs | `list_otidvs` | `get_otidv` | `iterate_otidvs` |
-| Opportunities | `list_opportunities` | — | `iterate_opportunities` |
-| Notices | `list_notices` | — | `iterate_notices` |
-| Forecasts | `list_forecasts` | — | `iterate_forecasts` |
-| Grants | `list_grants` | — | `iterate_grants` |
+| Subawards | `list_subawards` | `get_subaward` | `iterate_subawards` |
+| Opportunities | `list_opportunities` | `get_opportunity` | `iterate_opportunities` |
+| Notices | `list_notices` | `get_notice` | `iterate_notices` |
+| Forecasts | `list_forecasts` | `get_forecast` | `iterate_forecasts` |
+| Grants | `list_grants` | `get_grant` | `iterate_grants` |
 | Protests | `list_protests` | `get_protest` *(typed: `ProtestRecord`)* | `iterate_protests` |
 | Contract appeals | `list_contract_appeals` | `get_contract_appeal` *(typed: `ContractAppealRecord`)* | `iterate_contract_appeals` |
+| DIBBS (DLA) | `list_dibbs_rfqs` / `list_dibbs_rfps` / `list_dibbs_awards` | `get_dibbs_rfq` / `get_dibbs_rfp` / `get_dibbs_award` | `iterate_dibbs_*` |
+| Exclusions | `list_exclusions` | `get_exclusion` | `iterate_exclusions` |
+| SBIR / STTR | `list_sbir_topics` / `list_sbir_solicitations` | `get_sbir_topic` / `get_sbir_solicitation` | `iterate_sbir_*` |
+| State & local (SLED) | `list_sled_opportunities` / `list_sled_forecasts` | `get_sled_opportunity` / `get_sled_forecast` | `iterate_sled_*` |
+| Budget accounts | `list_budget_accounts` | `get_budget_account` | `iterate_budget_accounts` |
 | IT Dashboard | `list_itdashboard` | `get_itdashboard` | `iterate_itdashboard` |
 | NAICS / PSC | `list_naics` / `list_psc` | `get_naics` / `get_psc` | — |
 | Webhooks (CRUD) | `list_webhook_endpoints` / `list_webhook_alerts` | `get_` / `create_` / `update_` / `delete_` / `test_` | — |
 
-Sub-resources and lookups: `list_entity_contracts` / `_idvs` / `_otas` / `_otidvs` / `_subawards` / `_lcats` / `get_entity_metrics`, `list_idv_awards` / `_child_idvs` / `_transactions` / `_lcats`, `list_agency_awarding_contracts` / `_funding_contracts`, `list_vehicle_awardees` / `_orders`, `list_otidv_awards`, `list_gsa_elibrary_contracts`, `list_business_types`, `list_offices`, `list_departments`, `list_mas_sins`, `list_assistance_listings`, `list_lcats` (dispatcher). Meta: `resolve`, `validate`, `get_version`, `list_api_keys`, `search_opportunity_attachments`. Metrics dispatcher: `list_metrics`.
+Sub-resources and lookups: `list_contract_subawards` / `_transactions`, `list_entity_contracts` / `_idvs` / `_otas` / `_otidvs` / `_subawards` / `_lcats` / `get_entity_metrics` / `get_entity_budget_flows`, `get_budget_account_quarters` / `_recipients`, `list_sled_opportunity_revisions` / `get_sled_coverage`, `list_idv_awards` / `_child_idvs` / `_transactions` / `_lcats`, `list_agency_awarding_contracts` / `_funding_contracts`, `list_vehicle_awardees` / `_orders`, `list_otidv_awards`, `list_gsa_elibrary_contracts`, `list_business_types`, `list_offices`, `list_departments`, `list_mas_sins`, `list_assistance_listings`, `list_lcats` (dispatcher). Meta: `resolve`, `validate`, `get_version`, `list_api_keys`. `search_opportunity_attachments` is deprecated: the API retired that endpoint, and `list_opportunities` with `search` covers attachment text. Metrics dispatcher: `list_metrics`.
 
 See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full signatures, filter fields, and quirks.
 
@@ -288,7 +294,7 @@ In-repo guides:
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — crate layout, request lifecycle, design rationale
 - [`docs/CLIENT.md`](docs/CLIENT.md) — builder options, env vars, retry semantics, error model, rate-limit observability
 - [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) — method-by-method reference for every public method
-- [`docs/SHAPES.md`](docs/SHAPES.md) — shape grammar, the 21 presets, `flat` / `flat_lists`, trade-offs
+- [`docs/SHAPES.md`](docs/SHAPES.md) — shape grammar, the 34 presets, `flat` / `flat_lists`, trade-offs
 - [`docs/WEBHOOKS.md`](docs/WEBHOOKS.md) — receiving deliveries, CRUD methods, troubleshooting
 
 External:

@@ -179,6 +179,9 @@ pub struct ListSledOpportunitiesOptions {
     #[builder(into)]
     pub ordering: Option<String>,
 
+    /// When `Some(true)`, add `description` and `contact` to each list row. `description` is detail-only by default because its longest values run past 120,000 characters.
+    pub verbose: Option<bool>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -247,6 +250,7 @@ impl ListSledOpportunitiesOptions {
         push_opt(&mut q, "native_id", self.native_id.as_deref());
         push_opt(&mut q, "external_id", self.external_id.as_deref());
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt_bool(&mut q, "verbose", self.verbose);
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         for (k, v) in &self.extra {
             if !v.is_empty() {
@@ -966,5 +970,16 @@ mod tests {
             }
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn list_sled_opportunities_verbose_emits() {
+        let q = ListSledOpportunitiesOptions::builder()
+            .verbose(true)
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "verbose").as_deref(), Some("true"));
+        let q = ListSledOpportunitiesOptions::builder().build().to_query();
+        assert_eq!(get_q(&q, "verbose"), None);
     }
 }

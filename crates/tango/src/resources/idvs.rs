@@ -113,6 +113,10 @@ pub struct ListIDVsOptions {
     #[builder(into)]
     pub uei: Option<String>,
 
+    /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
+    #[builder(into)]
+    pub key: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -155,6 +159,7 @@ impl ListIDVsOptions {
         push_opt(&mut q, "naics", self.naics.as_deref());
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         push_opt(&mut q, "piid", self.piid.as_deref());
+        push_opt(&mut q, "key", self.key.as_deref());
         push_opt(
             &mut q,
             "pop_start_date_gte",
@@ -347,5 +352,11 @@ mod tests {
             }
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn list_idvs_key_filter_emits() {
+        let q = ListIDVsOptions::builder().key("K1").build().to_query();
+        assert_eq!(get_q(&q, "key").as_deref(), Some("K1"));
     }
 }

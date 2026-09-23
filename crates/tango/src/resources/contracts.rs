@@ -152,6 +152,10 @@ pub struct ListContractsOptions {
     #[builder(into)]
     pub order: Option<String>,
 
+    /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
+    #[builder(into)]
+    pub key: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -196,6 +200,7 @@ impl ListContractsOptions {
         push_opt(&mut q, "awarding_agency", self.awarding_agency.as_deref());
         push_opt(&mut q, "funding_agency", self.funding_agency.as_deref());
         push_opt(&mut q, "piid", self.piid.as_deref());
+        push_opt(&mut q, "key", self.key.as_deref());
         push_opt(
             &mut q,
             "solicitation_identifier",
@@ -437,5 +442,14 @@ mod tests {
             Error::Validation { message, .. } => assert!(message.contains("key")),
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn list_contracts_key_filter_emits() {
+        let q = ListContractsOptions::builder()
+            .key("K1|K2")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "key").as_deref(), Some("K1|K2"));
     }
 }

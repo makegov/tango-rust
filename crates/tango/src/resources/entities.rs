@@ -43,8 +43,8 @@ pub struct ListEntitiesOptions {
     /// CAGE code filter.
     #[builder(into)]
     pub cage_code: Option<String>,
-    /// CAGE filter. Distinct API filter from [`cage_code`](Self::cage_code);
-    /// the server rejects setting both — use one or the other.
+    /// Alias for [`cage_code`](Self::cage_code): both filter the same field.
+    /// The API rejects a request that sets both, so use one or the other.
     #[builder(into)]
     pub cage: Option<String>,
     /// NAICS code filter.

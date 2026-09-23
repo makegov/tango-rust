@@ -14,11 +14,17 @@ pub const DEFAULT_BASE_URL: &str = "https://tango.makegov.com";
 pub const SHAPE_CONTRACTS_MINIMAL: &str =
     "key,piid,award_date,recipient(display_name),description,total_contract_value";
 
-/// Default shape for
-/// [`Client::list_budget_accounts`](crate::Client::list_budget_accounts).
+/// Default shape for [`Client::list_budget_accounts`](crate::Client::list_budget_accounts) and [`Client::get_budget_account`](crate::Client::get_budget_account).
+///
+/// Mirrors the API's own default budget-account shape.
 pub const SHAPE_BUDGET_ACCOUNTS_MINIMAL: &str = concat!(
-    "federal_account_symbol,fiscal_year,agency_name,enacted_ba,",
-    "obligated_total,contract_obligated,contract_share_of_obligated_capped"
+    "id,federal_account_symbol,fiscal_year,agency_code,agency_name,bureau_name,",
+    "account_title,bea_category,on_off_budget,subfunction_code,",
+    "requested_ba,enacted_ba,apportioned,obligated_total,outlayed_total,",
+    "unobligated_balance,contract_obligated,contract_share_of_obligated_capped,",
+    "assistance_obligated,obligated_to_apportioned_pct_capped,",
+    "obligated_to_enacted_pct_capped,outlayed_to_obligated_pct_capped,",
+    "ba_growth_next_year_pct",
 );
 
 /// Default shape for [`Client::list_entities`](crate::Client::list_entities).
@@ -56,6 +62,30 @@ pub const SHAPE_PROTESTS_MINIMAL: &str =
 pub const SHAPE_CONTRACT_APPEALS_MINIMAL: &str = concat!(
     "uuid,board,docket_numbers,decision_date,appellant,judge,",
     "decision_type,url,listed",
+);
+
+/// Suggested list shape for [`Client::list_dibbs_rfqs`](crate::Client::list_dibbs_rfqs).
+pub const SHAPE_DIBBS_RFQS_MINIMAL: &str = concat!(
+    "uuid,solicitation,nsn,part_number,nomenclature,quantity,",
+    "issue_date,return_by_date,is_open",
+);
+
+/// Suggested list shape for [`Client::list_dibbs_rfps`](crate::Client::list_dibbs_rfps).
+pub const SHAPE_DIBBS_RFPS_MINIMAL: &str =
+    "uuid,solicitation,nsn,part_number,nomenclature,issued_date,closes_date,is_open";
+
+/// Suggested list shape for [`Client::list_dibbs_awards`](crate::Client::list_dibbs_awards).
+///
+/// `total_contract_price` is the order total repeated on every line item, so never sum it across rows.
+pub const SHAPE_DIBBS_AWARDS_MINIMAL: &str = concat!(
+    "uuid,award_number,solicitation,nsn,part_number,nomenclature,",
+    "awardee_cage,award_date,total_contract_price",
+);
+
+/// Suggested list shape for [`Client::list_exclusions`](crate::Client::list_exclusions).
+pub const SHAPE_EXCLUSIONS_MINIMAL: &str = concat!(
+    "exclusion_key,display_name,entity_name,uei,classification_type,exclusion_type,",
+    "excluding_agency_name,activate_date,termination_date,is_currently_excluded",
 );
 
 /// Default shape for [`Client::list_grants`](crate::Client::list_grants).
@@ -214,4 +244,16 @@ pub const SHAPE_SLED_FORECASTS_COMPREHENSIVE: &str = concat!(
     "incumbent_name,mbe_dbe_goal,delivery_location,source_url,source_status,",
     "has_documents,first_seen_at,last_seen_at,",
     "organization(*),contact(*),estimated_value(*)",
+);
+
+/// Suggested list shape for [`Client::list_sbir_topics`](crate::Client::list_sbir_topics).
+pub const SHAPE_SBIR_TOPICS_MINIMAL: &str = concat!(
+    "topic_id,topic_number,title,agency,activity,year,",
+    "solicitation_number,open_date,close_date,listed_open",
+);
+
+/// Suggested list shape for [`Client::list_sbir_solicitations`](crate::Client::list_sbir_solicitations).
+pub const SHAPE_SBIR_SOLICITATIONS_MINIMAL: &str = concat!(
+    "solicitation_id,solicitation_number,title,program,activity,",
+    "cycle_name,solicitation_status,year,start_date,end_date",
 );

@@ -17,12 +17,10 @@ use bon::Builder;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-/// Options for [`Client::list_budget_accounts`] and
-/// [`Client::iterate_budget_accounts`]. Mirrors `ListBudgetAccountsOptions`
-/// in the Go SDK.
+/// Options for [`Client::list_budget_accounts`] and [`Client::iterate_budget_accounts`].
 ///
-/// The full `__gte` / `__lte` range-filter set (the 26 numeric metrics on the
-/// underlying FilterSet) is reachable via the [`extra`](Self::extra) map.
+/// The API rejects an unknown filter name with a 400 rather than ignoring it.
+/// The exact, `__gte` and `__lte` range filters on the numeric lifecycle and ratio fields (e.g. `enacted_ba__gte`), and the `__in` multi-value variants, are reachable via the [`extra`](Self::extra) map.
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ListBudgetAccountsOptions {
@@ -61,9 +59,18 @@ pub struct ListBudgetAccountsOptions {
     /// Upper bound for `fiscal_year` (inclusive).
     #[builder(into)]
     pub fiscal_year_lte: Option<String>,
-    /// Awarding/funding agency CGAC code filter (exact).
+    /// Agency code filter (exact).
     #[builder(into)]
     pub agency_code: Option<String>,
+    /// Bureau name filter (exact).
+    #[builder(into)]
+    pub bureau_name: Option<String>,
+    /// Case-insensitive substring match on the account title (sent as `account_title__icontains`).
+    #[builder(into)]
+    pub account_title: Option<String>,
+    /// Budget subfunction code filter (exact).
+    #[builder(into)]
+    pub subfunction_code: Option<String>,
     /// Bureau of Economic Analysis category filter (exact).
     #[builder(into)]
     pub bea_category: Option<String>,
@@ -104,6 +111,13 @@ impl ListBudgetAccountsOptions {
         push_opt(&mut q, "fiscal_year__gte", self.fiscal_year_gte.as_deref());
         push_opt(&mut q, "fiscal_year__lte", self.fiscal_year_lte.as_deref());
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
+        push_opt(&mut q, "bureau_name", self.bureau_name.as_deref());
+        push_opt(
+            &mut q,
+            "account_title__icontains",
+            self.account_title.as_deref(),
+        );
+        push_opt(&mut q, "subfunction_code", self.subfunction_code.as_deref());
         push_opt(&mut q, "bea_category", self.bea_category.as_deref());
         push_opt(&mut q, "on_off_budget", self.on_off_budget.as_deref());
         push_opt(&mut q, "search", self.search.as_deref());
@@ -113,6 +127,58 @@ impl ListBudgetAccountsOptions {
                 q.push((k.clone(), v.clone()));
             }
         }
+        q
+    }
+}
+
+/// Options for [`Client::get_budget_account_quarters`].
+#[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct BudgetAccountQuartersOptions {
+    /// 1-based page number.
+    #[builder(into)]
+    pub page: Option<u32>,
+    /// Page size (default 25, server caps at 100).
+    #[builder(into)]
+    pub limit: Option<u32>,
+    /// Narrow to a single Treasury Account Symbol. Omit to get every TAS that rolls up under the federal account.
+    #[builder(into)]
+    pub tas: Option<String>,
+}
+
+impl BudgetAccountQuartersOptions {
+    fn to_query(&self) -> Vec<(String, String)> {
+        let mut q = Vec::new();
+        apply_pagination(&mut q, self.page, self.limit, None, None, false, false);
+        push_opt(&mut q, "tas", self.tas.as_deref());
+        q
+    }
+}
+
+/// Options for [`Client::get_budget_account_recipients`].
+#[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct BudgetAccountRecipientsOptions {
+    /// 1-based page number.
+    #[builder(into)]
+    pub page: Option<u32>,
+    /// Page size (default 25, server caps at 100).
+    #[builder(into)]
+    pub limit: Option<u32>,
+    /// Narrow to a single funding office (an organization UUID).
+    #[builder(into)]
+    pub funding_organization_id: Option<String>,
+}
+
+impl BudgetAccountRecipientsOptions {
+    fn to_query(&self) -> Vec<(String, String)> {
+        let mut q = Vec::new();
+        apply_pagination(&mut q, self.page, self.limit, None, None, false, false);
+        push_opt(
+            &mut q,
+            "funding_organization_id",
+            self.funding_organization_id.as_deref(),
+        );
         q
     }
 }
@@ -140,7 +206,7 @@ impl Client {
         PageStream::new(self.clone(), fetch)
     }
 
-    /// `GET /api/budget/accounts/{id}/` — a single budget-account rollup.
+    /// `GET /api/budget/accounts/{id}/` — a single budget-account rollup by its numeric `id` (from a list row's `id` field).
     pub async fn get_budget_account(&self, id: &str, opts: Option<ListOptions>) -> Result<Record> {
         if id.is_empty() {
             return Err(Error::Validation {
@@ -154,12 +220,14 @@ impl Client {
         self.get_json::<Record>(&path, &q).await
     }
 
-    /// `GET /api/budget/accounts/{id}/quarters/` — quarterly lifecycle detail
-    /// for a single account-year.
+    /// `GET /api/budget/accounts/{id}/quarters/` — one row per (TAS, quarter) of obligation and outlay flow for a single account-year.
+    ///
+    /// Coverage starts at FY2021; earlier years return an empty page.
+    /// The envelope also carries `federal_account_symbol` and `fiscal_year`, which [`Page`] does not surface.
     pub async fn get_budget_account_quarters(
         &self,
         id: &str,
-        opts: Option<ListOptions>,
+        opts: Option<BudgetAccountQuartersOptions>,
     ) -> Result<Page<Record>> {
         if id.is_empty() {
             return Err(Error::Validation {
@@ -167,22 +235,20 @@ impl Client {
                 response: None,
             });
         }
-        let mut q = Vec::new();
-        opts.unwrap_or_default().apply(&mut q);
+        let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/quarters/", urlencoding(id));
         let bytes = self.get_bytes(&path, &q).await?;
         Page::decode(&bytes)
     }
 
-    /// `GET /api/budget/accounts/{id}/recipients/` — funding-office x recipient
-    /// contract-flow detail for a single account-year. The response envelope
-    /// carries extra keys (`federal_account_symbol`, `fiscal_year`) alongside
-    /// the standard pagination fields, so callers should navigate the returned
-    /// [`Record`] structure directly.
+    /// `GET /api/budget/accounts/{id}/recipients/` — funding-office x recipient contract flows for a single account-year, largest `contract_obligated` first.
+    ///
+    /// Contract flows only. Each row carries the resolved `funding_office` and `recipient`, plus a capped `contracts` list; a row that hits the cap sets `contracts_truncated`.
+    /// The envelope also carries `federal_account_symbol` and `fiscal_year`, which [`Page`] does not surface.
     pub async fn get_budget_account_recipients(
         &self,
         id: &str,
-        opts: Option<ListOptions>,
+        opts: Option<BudgetAccountRecipientsOptions>,
     ) -> Result<Page<Record>> {
         if id.is_empty() {
             return Err(Error::Validation {
@@ -190,8 +256,7 @@ impl Client {
                 response: None,
             });
         }
-        let mut q = Vec::new();
-        opts.unwrap_or_default().apply(&mut q);
+        let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/recipients/", urlencoding(id));
         let bytes = self.get_bytes(&path, &q).await?;
         Page::decode(&bytes)
@@ -214,6 +279,9 @@ mod tests {
             .fiscal_year_gte("2020")
             .fiscal_year_lte("2025")
             .agency_code("9700")
+            .bureau_name("Operation and Maintenance")
+            .account_title("readiness")
+            .subfunction_code("051")
             .bea_category("discretionary")
             .on_off_budget("on")
             .search("operations")
@@ -228,6 +296,15 @@ mod tests {
         assert_eq!(get_q(&q, "fiscal_year__gte").as_deref(), Some("2020"));
         assert_eq!(get_q(&q, "fiscal_year__lte").as_deref(), Some("2025"));
         assert_eq!(get_q(&q, "agency_code").as_deref(), Some("9700"));
+        assert_eq!(
+            get_q(&q, "bureau_name").as_deref(),
+            Some("Operation and Maintenance")
+        );
+        assert_eq!(
+            get_q(&q, "account_title__icontains").as_deref(),
+            Some("readiness")
+        );
+        assert_eq!(get_q(&q, "subfunction_code").as_deref(), Some("051"));
         assert_eq!(get_q(&q, "bea_category").as_deref(), Some("discretionary"));
         assert_eq!(get_q(&q, "on_off_budget").as_deref(), Some("on"));
         assert_eq!(get_q(&q, "search").as_deref(), Some("operations"));
@@ -257,6 +334,35 @@ mod tests {
         let opts = ListBudgetAccountsOptions::builder().extra(extra).build();
         let q = opts.to_query();
         assert_eq!(get_q(&q, "enacted_ba__gte").as_deref(), Some("1000000"));
+    }
+
+    #[test]
+    fn quarters_options_emit_tas_and_pagination() {
+        let q = BudgetAccountQuartersOptions::builder()
+            .page(2u32)
+            .limit(50u32)
+            .tas("097-2020/2021-0100")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "page").as_deref(), Some("2"));
+        assert_eq!(get_q(&q, "limit").as_deref(), Some("50"));
+        assert_eq!(get_q(&q, "tas").as_deref(), Some("097-2020/2021-0100"));
+        assert_eq!(q.len(), 3);
+    }
+
+    #[test]
+    fn recipients_options_emit_funding_organization_id() {
+        let q = BudgetAccountRecipientsOptions::builder()
+            .funding_organization_id("0b7e4c1e-0000-4000-8000-000000000000")
+            .build()
+            .to_query();
+        assert_eq!(
+            q,
+            vec![(
+                "funding_organization_id".to_string(),
+                "0b7e4c1e-0000-4000-8000-000000000000".to_string()
+            )]
+        );
     }
 
     #[tokio::test]

@@ -2,7 +2,7 @@
 
 Dynamic response shaping is the Tango API's signature feature: instead of always receiving every field on a resource, you tell the server exactly which fields you want, and it returns only those. Payloads stay small, responses stay fast, and the SDK doesn't have to chase schema drift.
 
-This guide covers the shape grammar, the 21 built-in `SHAPE_*` constants, the `flat` / `flat_lists` modifiers, and the trade-offs to think about when picking a shape.
+This guide covers the shape grammar, the 34 built-in `SHAPE_*` constants, the `flat` / `flat_lists` modifiers, and the trade-offs to think about when picking a shape.
 
 ## What is a shape?
 
@@ -62,7 +62,7 @@ let page = client.list_contracts(
 # Ok(()) }
 ```
 
-For convenience, the SDK ships 21 preset constants. Use them when you don't need a custom selector:
+For convenience, the SDK ships 34 preset constants. Use them when you don't need a custom selector:
 
 ```rust
 use tango::{Client, ListContractsOptions, SHAPE_CONTRACTS_MINIMAL};
@@ -76,7 +76,7 @@ let page = client.list_contracts(
 
 ## Shape preset constants
 
-All 21 constants live in `shapes.rs` and are re-exported at the crate root. They mirror the `ShapeConfig.*` enums in `tango-node` and `tango-python` exactly — same names, same field selectors, same intent.
+All 34 constants live in `shapes.rs` and are re-exported at the crate root. They mirror the `ShapeConfig.*` enums in `tango-node` and `tango-python` exactly — same names, same field selectors, same intent.
 
 | Constant | Intended use | Notes |
 | -------- | ------------ | ----- |
@@ -101,6 +101,19 @@ All 21 constants live in `shapes.rs` and are re-exported at the crate root. They
 | `SHAPE_GSA_ELIBRARY_CONTRACTS_MINIMAL` | `list_gsa_elibrary_contracts` | uuid + contract_number + schedule + recipient + idv |
 | `SHAPE_ITDASHBOARD_INVESTMENTS_MINIMAL` | `list_itdashboard` | matches `INVESTMENT_LIST_DEFAULT_SHAPE` server-side |
 | `SHAPE_ITDASHBOARD_INVESTMENTS_COMPREHENSIVE` | `get_itdashboard` | matches `INVESTMENT_RETRIEVE_DEFAULT_SHAPE` server-side |
+| `SHAPE_CONTRACT_APPEALS_MINIMAL` | `list_contract_appeals` | uuid, board, dockets, decision date, appellant, judge, decision type, url, listed (never `decision_text`) |
+| `SHAPE_SLED_OPPORTUNITIES_MINIMAL` | `list_sled_opportunities` | solicitation identity, jurisdiction, status, dates, source URL |
+| `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` | `get_sled_opportunity` | the above + description, contact, attachments metadata |
+| `SHAPE_SLED_REVISIONS_MINIMAL` | `list_sled_opportunity_revisions` | observed_at, sequence, kind, changed_fields, source_declared |
+| `SHAPE_SLED_FORECASTS_MINIMAL` | `list_sled_forecasts` | forecast identity, agency, advertisement estimate, value band |
+| `SHAPE_SLED_FORECASTS_COMPREHENSIVE` | `get_sled_forecast` | the above + description, organization, contact |
+| `SHAPE_BUDGET_ACCOUNTS_MINIMAL` | `list_budget_accounts` | the API's default: identity + lifecycle dollars + capped ratios |
+| `SHAPE_DIBBS_RFQS_MINIMAL` | `list_dibbs_rfqs` | uuid, solicitation, NSN, part number, nomenclature, quantity, dates, is_open |
+| `SHAPE_DIBBS_RFPS_MINIMAL` | `list_dibbs_rfps` | uuid, solicitation, NSN, part number, nomenclature, dates, is_open |
+| `SHAPE_DIBBS_AWARDS_MINIMAL` | `list_dibbs_awards` | uuid, award number, solicitation, NSN, part, awardee CAGE, award date, order total |
+| `SHAPE_EXCLUSIONS_MINIMAL` | `list_exclusions` | exclusion_key, names, UEI, classification, type, excluding agency, dates, is_currently_excluded |
+| `SHAPE_SBIR_TOPICS_MINIMAL` | `list_sbir_topics` | topic identity, agency, activity, year, solicitation, open/close dates |
+| `SHAPE_SBIR_SOLICITATIONS_MINIMAL` | `list_sbir_solicitations` | solicitation identity, program, activity, cycle, status, year, dates |
 
 ## `flat` and `flat_lists` modifiers
 

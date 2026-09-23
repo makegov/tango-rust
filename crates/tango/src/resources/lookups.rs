@@ -816,8 +816,10 @@ impl Client {
         PageStream::new(self.clone(), fetch)
     }
 
-    /// `GET /api/departments/{code}/` — fetch a single department by code
-    /// (typically the CGAC department code, e.g. `"097"` for DoD).
+    /// `GET /api/departments/{code}/` — fetch a single department by code (e.g. `"97"` for DoD).
+    ///
+    /// The API's department `code` is an integer, so the returned record carries it as a JSON number (`97`), not a string.
+    /// An agency's nested `department.code` is the same integer, while the agency's own `code` is a string (`"9700"`).
     pub async fn get_department(&self, code: &str) -> Result<Record> {
         if code.is_empty() {
             return Err(Error::Validation {

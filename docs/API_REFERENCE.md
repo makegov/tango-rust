@@ -35,7 +35,7 @@ Options: `ListAgenciesOptions`, `GetAgencyOptions`, `AgencyContractsOptions` (al
 | `list_contract_subawards(key, opts)` | `GET /api/contracts/{key}/subawards/` | `Page<Record>` |
 | `list_contract_transactions(key, opts)` | `GET /api/contracts/{key}/transactions/` | `Page<Record>` |
 
-Options: `ListContractsOptions` (list), `ListOptions` (`get_contract`), `EntitySubresourceOptions` (sub-routes). SDK-friendly filter aliases (`naics_code`, `psc_code`, `recipient_name`, `recipient_uei`, `set_aside_type`, `keyword`) map onto canonical API names. When both are set, the SDK alias wins (mirrors Node/Python). `sort`+`order` combine into `ordering` with `-` prefix for descending.
+Options: `ListContractsOptions` (list), `ListOptions` (`get_contract`), `EntitySubresourceOptions` (sub-routes; `/transactions/` honours only pagination and `ordering`). SDK-friendly filter aliases (`naics_code`, `psc_code`, `recipient_name`, `recipient_uei`, `set_aside_type`, `keyword`) map onto canonical API names. When both are set, the SDK alias wins (mirrors Node/Python). `sort`+`order` combine into `ordering` with `-` prefix for descending.
 
 ### IDVs (`idvs.rs`, `idv_subresources.rs`)
 
@@ -44,7 +44,7 @@ Options: `ListContractsOptions` (list), `ListOptions` (`get_contract`), `EntityS
 | `list_idvs(opts)` / `iterate_idvs(opts)` | `GET /api/idvs/` | `Page<Record>` / `PageStream<Record>` |
 | `get_idv(key, opts)` | `GET /api/idvs/{key}/` | `Record` |
 | `list_idv_awards(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/awards/` | `Page<Record>` / `PageStream<Record>` |
-| `list_idv_child_idvs(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/child-idvs/` | `Page<Record>` / `PageStream<Record>` |
+| `list_idv_child_idvs(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/idvs/` | `Page<Record>` / `PageStream<Record>` |
 | `list_idv_transactions(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/transactions/` | `Page<Record>` / `PageStream<Record>` |
 | `list_idv_lcats(key, opts)` / `iterate_*` | `GET /api/idvs/{key}/lcats/` | `Page<Record>` / `PageStream<Record>` |
 
@@ -65,7 +65,7 @@ Options: `ListIDVsOptions`, `GetIDVOptions`, `IdvSubresourceOptions` (shared acr
 | `get_entity_budget_flows(uei, opts)` | `GET /api/entities/{uei}/budget-flows/` | `Page<Record>` |
 | `get_entity_metrics(uei, months, period_grouping)` | `GET /api/entities/{uei}/metrics/{months}/{period_grouping}/` | `Record` |
 
-Options: `ListEntitiesOptions`, `GetEntityOptions`, `EntitySubresourceOptions` (shared across sub-resource list endpoints). `ListEntitiesOptions` exposes both `cage` and `cage_code` as distinct typed filters; the server rejects setting both.
+Options: `ListEntitiesOptions`, `GetEntityOptions`, `EntitySubresourceOptions` (shared across sub-resource list endpoints), `EntityBudgetFlowsOptions` (`get_entity_budget_flows`: pagination plus `fiscal_year`). `ListEntitiesOptions` exposes `cage` as an alias for `cage_code`; the server rejects a request that sets both. Budget flows are contract flows only: grant and assistance flows are not in that index.
 
 ### Vehicles (`vehicles.rs`, `vehicle_subresources.rs`)
 
@@ -90,9 +90,11 @@ Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions
 | `get_forecast(id, opts)` | `GET /api/forecasts/{id}/` | `Record` |
 | `list_grants(opts)` / `iterate_*` | `GET /api/grants/` | `Page<Record>` / `PageStream<Record>` |
 | `get_grant(grant_id, opts)` | `GET /api/grants/{grant_id}/` | `Record` |
-| `search_opportunity_attachments(opts)` | `GET /api/opportunities/attachment-search/` | `Page<Record>` |
+| `search_opportunity_attachments(opts)` *(deprecated)* | `GET /api/opportunities/attachment-search/` | `Record` |
 
-Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`, `SearchOpportunityAttachmentsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. The attachment-search method validates `q` non-empty client-side. `ListGrantsOptions` exposes a typed `grant_id` filter.
+Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`, `SearchOpportunityAttachmentsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. `ListGrantsOptions` exposes a typed `grant_id` filter; `ListNoticesOptions` adds `notice_id`, `department` and `office`; `ListOpportunitiesOptions` adds `opportunity_id`; `ListForecastsOptions` adds `id`.
+
+**`search_opportunity_attachments` is deprecated.** The API retired `/api/opportunities/attachment-search/`: it returns 404 for every query and keeps the route only so a missing `q` still gets its 400. `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit.
 
 ### OTAs / OTIDVs (`otas.rs`)
 
@@ -104,7 +106,7 @@ Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions
 | `get_otidv(key, opts)` | `GET /api/otidvs/{key}/` | `Record` |
 | `list_otidv_awards(key, opts)` / `iterate_*` | `GET /api/otidvs/{key}/awards/` | `Page<Record>` / `PageStream<Record>` |
 
-Options: `ListOTAsOptions`, `GetOTAOptions`, `ListOTIDVsOptions`, `GetOTIDVOptions`, `ListOTIDVAwardsOptions`.
+Options: `ListOTAsOptions`, `GetOTAOptions`, `ListOTIDVsOptions`, `GetOTIDVOptions`, `ListOTIDVAwardsOptions`. Like contracts and IDVs, each list options struct carries a `key` filter that accepts `|`-separated award keys.
 
 ### Subawards (`subawards.rs`)
 
@@ -124,7 +126,15 @@ Options: `ListSubawardsOptions` (list), `ListOptions` (`get_subaward`). **Note**
 | `get_budget_account_quarters(id, opts)` | `GET /api/budget/accounts/{id}/quarters/` | `Page<Record>` |
 | `get_budget_account_recipients(id, opts)` | `GET /api/budget/accounts/{id}/recipients/` | `Page<Record>` |
 
-Options: `ListBudgetAccountsOptions` (list), `ListOptions` (`get_*`). The `BudgetAccount` schema is wide (~63 fields) and shape-driven; use `SHAPE_BUDGET_ACCOUNTS_MINIMAL` for a compact default. The full `__gte` / `__lte` numeric-range filters are reachable via the `extra` map. The `recipients` envelope carries extra keys (`federal_account_symbol`, `fiscal_year`) alongside the pagination fields.
+One row per federal account and fiscal year, covering the budget lifecycle (requested, enacted, apportioned, obligated, outlayed) with pre-computed ratios, trends and the contract / assistance breakdown.
+
+Options: `ListBudgetAccountsOptions` (list), `ListOptions` (`get_budget_account`), `BudgetAccountQuartersOptions` (pagination plus `tas`), `BudgetAccountRecipientsOptions` (pagination plus `funding_organization_id`). `SHAPE_BUDGET_ACCOUNTS_MINIMAL` mirrors the API's default shape.
+
+- **The list endpoint rejects an unknown filter name** with a 400 and a did-you-mean, rather than silently returning the unfiltered page. Typed fields cover the identity filters (`federal_account_symbol`, `fiscal_year` and its range, `agency_code`, `bureau_name`, `account_title`, `bea_category`, `on_off_budget`, `subfunction_code`); the numeric `__gte` / `__lte` range filters and the `__in` variants go through `extra`.
+- **`{id}` is the row's numeric `id`**, not the federal account symbol.
+- **`quarters` covers FY2021 onward**; an earlier account-year returns an empty page.
+- **`recipients` is contract flows only.** Each row carries the resolved `funding_office` and `recipient` plus a capped `contracts` list; a row that hits the cap sets `contracts_truncated`.
+- The `quarters` and `recipients` envelopes also carry `federal_account_symbol` and `fiscal_year`, which `Page` does not surface.
 
 ### GSA eLibrary (`gsa.rs`)
 
@@ -167,6 +177,56 @@ Filters: `search`, `board` (`cbca` / `asbca`), `docket`, `appellant`, `judge`, `
 
 **The decision body is `decision_text`, on an Enterprise plan.** Below Enterprise the key is **absent rather than null**, so `None` means "not served to this caller" and never "this decision has no text" — `text_status` and `text_char_count` describe the text at every plan. `SHAPE_CONTRACT_APPEALS_MINIMAL` deliberately does not name it, so a list page never pays for text most callers are not served.
 
+### DIBBS (`dibbs.rs`)
+
+Defense Logistics Agency solicitations and awards from DIBBS.
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_dibbs_rfqs(opts)` / `iterate_dibbs_rfqs(opts)` | `GET /api/dibbs/rfqs/` | `Page<Record>` / `PageStream<Record>` |
+| `get_dibbs_rfq(uuid, opts)` | `GET /api/dibbs/rfqs/{uuid}/` | `Record` |
+| `list_dibbs_rfps(opts)` / `iterate_dibbs_rfps(opts)` | `GET /api/dibbs/rfps/` | `Page<Record>` / `PageStream<Record>` |
+| `get_dibbs_rfp(uuid, opts)` | `GET /api/dibbs/rfps/{uuid}/` | `Record` |
+| `list_dibbs_awards(opts)` / `iterate_dibbs_awards(opts)` | `GET /api/dibbs/awards/` | `Page<Record>` / `PageStream<Record>` |
+| `get_dibbs_award(uuid, opts)` | `GET /api/dibbs/awards/{uuid}/` | `Record` |
+
+Options: `ListDibbsRfqsOptions`, `ListDibbsRfpsOptions`, `ListDibbsAwardsOptions`, `GetDibbsOptions`. Shapes: `SHAPE_DIBBS_RFQS_MINIMAL`, `SHAPE_DIBBS_RFPS_MINIMAL`, `SHAPE_DIBBS_AWARDS_MINIMAL`.
+
+- **Open/closed is derived at query time** from `return_by_date` (RFQs) or `closes_date` (RFPs); there is no stored flag. Filter with `open`, which is `Option<bool>` so `Some(false)` reaches the server.
+- **An award row is one line item, and `total_contract_price` is the order total repeated on every line.** Never sum it across rows; deduplicate on `award_number` + `delivery_order_number` first.
+- `entity` matches only awards whose CAGE code resolved to a registered entity; `awardee_cage` reaches every award.
+
+### Exclusions (`exclusions.rs`)
+
+SAM.gov exclusions: debarments, suspensions and other ineligibility records.
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_exclusions(opts)` / `iterate_exclusions(opts)` | `GET /api/exclusions/` | `Page<Record>` / `PageStream<Record>` |
+| `get_exclusion(exclusion_key, opts)` | `GET /api/exclusions/{exclusion_key}/` | `Record` |
+
+Options: `ListExclusionsOptions`, `GetExclusionOptions`. Shape: `SHAPE_EXCLUSIONS_MINIMAL`.
+
+- **Whether an exclusion is in force is derived at query time**: not delisted, already activated, not yet terminated. Filter with `active` rather than trusting a stored flag.
+- **`delisted` is not expiry.** It means SAM lifted or withdrew the record; a natural expiration leaves the record listed.
+- Most exclusions are individuals and carry no UEI. `entity_uei` is set only when the record's UEI matches a registered entity.
+
+### SBIR / STTR (`sbir.rs`)
+
+SBIR/STTR topics and DoD DSIP solicitation cycles.
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_sbir_topics(opts)` / `iterate_sbir_topics(opts)` | `GET /api/sbir/topics/` | `Page<Record>` / `PageStream<Record>` |
+| `get_sbir_topic(topic_id, opts)` | `GET /api/sbir/topics/{topic_id}/` | `Record` |
+| `list_sbir_solicitations(opts)` / `iterate_sbir_solicitations(opts)` | `GET /api/sbir/solicitations/` | `Page<Record>` / `PageStream<Record>` |
+| `get_sbir_solicitation(solicitation_id, opts)` | `GET /api/sbir/solicitations/{solicitation_id}/` | `Record` |
+
+Options: `ListSbirTopicsOptions`, `ListSbirSolicitationsOptions`, `GetSbirOptions`. Shapes: `SHAPE_SBIR_TOPICS_MINIMAL`, `SHAPE_SBIR_SOLICITATIONS_MINIMAL`.
+
+- **`activity` is open/closed, derived at query time** from the close or end date. A topic with no close date and no parent solicitation to inherit one from is `unknown`.
+- The topic `agency` filter is a partial, case-insensitive match on the raw agency text, not organization-resolved, so variant spellings do not normalize.
+
 ### State & Local — SLED (`sled.rs`) — **Beta**
 
 State, local and education procurement: solicitations that never appear on SAM.gov because they were never federal. Coverage is partial and grows one jurisdiction at a time.
@@ -180,7 +240,7 @@ State, local and education procurement: solicitations that never appear on SAM.g
 | `list_sled_forecasts(opts)` / `iterate_sled_forecasts(opts)` | `GET /api/sled/forecasts/` | `Page<Record>` / `PageStream<Record>` |
 | `get_sled_forecast(id, opts)` | `GET /api/sled/forecasts/{forecast_id}/` | `Record` |
 
-Options: `ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, `ListSledForecastsOptions`, `GetSledOptions`. Shapes: `SHAPE_SLED_OPPORTUNITIES_MINIMAL` / `_COMPREHENSIVE`, `SHAPE_SLED_REVISIONS_MINIMAL`, `SHAPE_SLED_FORECASTS_MINIMAL` / `_COMPREHENSIVE`.
+Options: `ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, `ListSledForecastsOptions`, `GetSledOptions`. Shapes: `SHAPE_SLED_OPPORTUNITIES_MINIMAL` / `_COMPREHENSIVE`, `SHAPE_SLED_REVISIONS_MINIMAL`, `SHAPE_SLED_FORECASTS_MINIMAL` / `_COMPREHENSIVE`. `ListSledOpportunitiesOptions::verbose` adds `description` and `contact` to each list row; `description` is otherwise detail-only because its longest values run past 120,000 characters.
 
 **This data does not join to the federal data.** No UEI, no PIID, no agency-hierarchy key and no NAICS/PSC crosswalk; the `organization(*)` expand here is three strings, not the federal 7-key office payload.
 
@@ -207,7 +267,7 @@ Forecasts carry **no liveness at all**: no deadline to have passed, so no `statu
 | `list_itdashboard(opts)` / `iterate_itdashboard(opts)` | `GET /api/itdashboard/` | `Page<Record>` / `PageStream<Record>` |
 | `get_itdashboard(uii, opts)` | `GET /api/itdashboard/{uii}/` | `Record` |
 
-Options: `ListItdashboardOptions`, `GetItdashboardOptions`. Some filters are tier-gated by the server (free vs. pro vs. business+); see the rustdoc on the options struct.
+Options: `ListItdashboardOptions`, `GetItdashboardOptions`. `previous_uii` finds the investment(s) that superseded a retired UII. Some filters are tier-gated by the server (free vs. pro vs. business+); see the rustdoc on the options struct.
 
 ### LCATs (`lcats.rs`)
 
@@ -233,6 +293,8 @@ Options: `ListItdashboardOptions`, `GetItdashboardOptions`. Some filters are tie
 Paths: `/api/organizations/`, `/api/naics/`, `/api/psc/`, `/api/mas_sins/`, `/api/assistance_listings/`, `/api/business_types/`, `/api/offices/`, `/api/departments/`. (The underscore/hyphen split is the server's; the SDK matches it.)
 
 Options: `ListOrganizationsOptions`, `ListNaicsOptions`, `ListPscOptions`, `ListMasSinsOptions`, `ListAssistanceListingsOptions`, `ListBusinessTypesOptions`, `ListOfficesOptions`, `ListDepartmentsOptions`.
+
+A department's `code` is an integer (`97` for DoD), returned as a JSON number; `get_department` takes it as a string (`"97"`). An agency's own `code` is a string (`"9700"`), and its nested `department.code` is the department's integer.
 
 ### Metrics (`metrics.rs`)
 
@@ -306,7 +368,7 @@ Options: `ListApiKeysOptions`.
 
 ## See also
 
-- [`SHAPES.md`](SHAPES.md) — the full grammar and the 21 `SHAPE_*` preset constants.
+- [`SHAPES.md`](SHAPES.md) — the full grammar and the 34 `SHAPE_*` preset constants.
 - [`WEBHOOKS.md`](WEBHOOKS.md) — signing, verification, middleware, CRUD.
 - [`CLIENT.md`](CLIENT.md) — builder options, env vars, retry semantics, error model.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — design walk-through.

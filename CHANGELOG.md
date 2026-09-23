@@ -7,25 +7,24 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Sync to Tango API v4.6.9. Pre-1.0 (SemVer 0.x): the removals below are breaking but ship without a deprecation cycle.
-
-### Added
-
-- **Budget surface** (`budget.rs`): `list_budget_accounts` / `iterate_budget_accounts` (`GET /api/budget/accounts/`), `get_budget_account` (`GET /api/budget/accounts/{id}/`), `get_budget_account_quarters` (`GET /api/budget/accounts/{id}/quarters/`), `get_budget_account_recipients` (`GET /api/budget/accounts/{id}/recipients/`). New `ListBudgetAccountsOptions` builder and `SHAPE_BUDGET_ACCOUNTS_MINIMAL` shape constant.
-- Singleton detail GETs: `get_contract` (`GET /api/contracts/{key}/`), `get_opportunity`, `get_notice`, `get_forecast`, `get_grant`, `get_subaward`.
-- Contract sub-routes: `list_contract_subawards` (`GET /api/contracts/{key}/subawards/`), `list_contract_transactions` (`GET /api/contracts/{key}/transactions/`).
-- `get_entity_budget_flows` (`GET /api/entities/{uei}/budget-flows/`).
-- `grant_id` typed filter on `ListGrantsOptions`.
-- `cage` typed filter on `ListEntitiesOptions` (distinct from the existing `cage_code`; the server rejects setting both).
-
-### Removed
-
-- **Breaking**: `get_idv_summary` and `list_idv_summary_awards`. These hit `/api/idvs/{key}/summary/` and `/api/idvs/{key}/summary/awards/`, which have never existed in the Tango API (the server returns 404). Use `get_idv` with a comprehensive shape and `list_idv_awards` respectively.
+Pre-1.0 (SemVer 0.x): the removal under **Breaking** ships without a deprecation cycle.
 
 ### `makegov-tango`
 
+#### Breaking
+
+- **Removed `get_idv_summary` and `list_idv_summary_awards`.** They called `/api/idvs/{key}/summary/` and `/api/idvs/{key}/summary/awards/`, which have never existed in the Tango API, so every call returned 404. Use `get_idv` with `SHAPE_IDVS_COMPREHENSIVE` and `list_idv_awards` instead.
+
 #### Added
 
+- **Budget accounts** (`resources/budget.rs`): `list_budget_accounts` / `iterate_budget_accounts`, `get_budget_account`, `get_budget_account_quarters` and `get_budget_account_recipients`, with `ListBudgetAccountsOptions`, `BudgetAccountQuartersOptions` (`tas`), `BudgetAccountRecipientsOptions` (`funding_organization_id`) and `SHAPE_BUDGET_ACCOUNTS_MINIMAL`, which mirrors the API's default shape. The list endpoint rejects an unknown filter name with a 400, so the identity filters are typed fields and the numeric `__gte` / `__lte` range filters go through `extra`. `{id}` is the row's numeric `id`, not the federal account symbol.
+- **`get_entity_budget_flows`** (`GET /api/entities/{uei}/budget-flows/`) with `EntityBudgetFlowsOptions` (pagination plus `fiscal_year`): the federal accounts that paid an entity, contract flows only.
+- **DIBBS** (`resources/dibbs.rs`): `list_dibbs_rfqs` / `get_dibbs_rfq`, `list_dibbs_rfps` / `get_dibbs_rfp`, `list_dibbs_awards` / `get_dibbs_award`, each with an `iterate_*`, plus `SHAPE_DIBBS_RFQS_MINIMAL`, `SHAPE_DIBBS_RFPS_MINIMAL` and `SHAPE_DIBBS_AWARDS_MINIMAL`. Every filter the API accepts is a named field. RFQ and RFP `open` is derived at query time and is `Option<bool>`, so `Some(false)` reaches the server. An award row is one line item and `total_contract_price` is the order total repeated on each, so it must not be summed across rows.
+- **Exclusions** (`resources/exclusions.rs`): `list_exclusions` / `get_exclusion` / `iterate_exclusions` and `SHAPE_EXCLUSIONS_MINIMAL`. `active` (in force today, derived at query time) and `delisted` (lifted or withdrawn by SAM, which is not the same as expiring) are `Option<bool>`.
+- **SBIR / STTR** (`resources/sbir.rs`): `list_sbir_topics` / `get_sbir_topic` / `iterate_sbir_topics`, `list_sbir_solicitations` / `get_sbir_solicitation` / `iterate_sbir_solicitations`, `SHAPE_SBIR_TOPICS_MINIMAL` and `SHAPE_SBIR_SOLICITATIONS_MINIMAL`. `activity` is open/closed derived at query time; a topic with no close date to go on is `unknown`.
+- **Singleton detail GETs:** `get_contract`, `get_opportunity`, `get_notice`, `get_forecast`, `get_grant` and `get_subaward`, each taking `Option<ListOptions>` for `shape` / `flat`.
+- **Contract sub-routes:** `list_contract_subawards` (`GET /api/contracts/{key}/subawards/`) and `list_contract_transactions` (`GET /api/contracts/{key}/transactions/`).
+- **Filters the API accepts that the SDK did not name:** `key` on `ListContractsOptions`, `ListIDVsOptions`, `ListOTAsOptions`, `ListOTIDVsOptions` and `ListOTIDVAwardsOptions` (award keys, `|` for several); `grant_id` on `ListGrantsOptions`; `cage` on `ListEntitiesOptions` (an alias of `cage_code`; the API rejects a request that sets both); `notice_id`, `department` and `office` on `ListNoticesOptions`; `opportunity_id` on `ListOpportunitiesOptions`; `id` on `ListForecastsOptions`; `previous_uii` on `ListItdashboardOptions`; and `verbose` on `ListSledOpportunitiesOptions`, which adds `description` and `contact` to each list row.
 - **Contract appeals — CBCA and ASBCA decisions** (Tango API 4.26.0). `resources/contract_appeals.rs` adds `list_contract_appeals` / `get_contract_appeal` / `iterate_contract_appeals`, two `bon`-derived options builders (`ListContractAppealsOptions`, `GetContractAppealOptions`), the typed `models::ContractAppealRecord`, and `SHAPE_CONTRACT_APPEALS_MINIMAL`. Every filter the endpoint accepts is a named field: `search`, `board`, `docket`, `appellant`, `judge`, `decision_type`, `decision_date_after` / `_before`, `listed`, `document_id`, plus `ordering` over `decision_date` (the server's default is `-decision_date`), `appellant`, `first_listed_at` and `rank`.
 
   **These are Contract Disputes Act appeals, not bid protests.** An appeal is a dispute under a contract already awarded, decided by a board; a protest challenges the award itself and stays on `list_protests`. A company can appear in both corpora and nothing joins the two.
@@ -50,10 +49,15 @@ Sync to Tango API v4.6.9. Pre-1.0 (SemVer 0.x): the removals below are breaking 
 
 - **`SHAPE_SLED_OPPORTUNITIES_MINIMAL` and `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` now include `delisted_at`**, matching the API's own default shapes. It is when the portal stopped listing a solicitation before its deadline, and it is what `status_reason = "delisted"` refers to.
 
+#### Deprecated
+
+- **`search_opportunity_attachments`.** The API retired `/api/opportunities/attachment-search/`: it returns 404 for every query and keeps the route only so a missing `q` still gets its 400. `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit. The method will be removed in a later release.
+
 #### Fixed
 
 - **Protest enum values are documented in the casing the API returns.** `source_system` is lowercase (`gao`, `cofc`, `sba_oha`) and `outcome` is title-case (`Sustained`, `Denied`, …), not `"GAO"` / `"sustained"` as the rustdoc on `ListProtestsOptions` and `ProtestRecord` previously said. Filters were always case-insensitive, but code comparing returned values against the old examples would miss every match. The protests docs now also name SBA OHA as a source and list its extra outcomes (`Granted`, `Remanded`, `Reversed`, `Vacated`).
 - The `ListProtestsOptions::agency` rustdoc now describes what the filter accepts: a name, abbreviation or code, with `|` for multiple values.
+- `get_department`'s rustdoc gave the department code as `"097"`. The API's department `code` is an integer (`97` for DoD) and comes back as a JSON number; the docs now say so, and a wire test pins that both `get_department` and the nested `department.code` on `get_agency` decode it.
 
 #### Documentation
 
@@ -61,6 +65,12 @@ Sync to Tango API v4.6.9. Pre-1.0 (SemVer 0.x): the removals below are breaking 
 - New **State & Local — SLED** section in `docs/API_REFERENCE.md` covering all six methods and both defaults that surprise people.
 - `docs/WEBHOOKS.md` alert semantics names `contract_appeal` / `alerts.contract_appeal.match` and says it overlaps neither `contract` nor the protest corpus. The SDK models `query_type` and `event_types` as free-form strings, so this is a documentation change rather than a new constant.
 - `docs/WEBHOOKS.md` alert semantics gained the date-lapse rule and its one exception. An exclusion or DIBBS solicitation reaching its date fires nothing, because open/closed is derived at query time — but `alerts.sled_opportunity.match` **does** fire on a closing, since SLED liveness is a stored column a fifteen-minute sweep writes.
+- New **Budget**, **DIBBS**, **Exclusions** and **SBIR / STTR** sections in `docs/API_REFERENCE.md`, new rows in the README method table, and the 13 shape constants `docs/SHAPES.md` did not list.
+- `docs/API_REFERENCE.md` gave the child-IDV route as `/api/idvs/{key}/child-idvs/`; the SDK always called the correct `/api/idvs/{key}/idvs/`.
+
+### `makegov-tango-webhooks`
+
+No changes; the version moves to 0.2.0 in lockstep with `makegov-tango`.
 
 ## [0.1.0] — 2026-05-15
 
