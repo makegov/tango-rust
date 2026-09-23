@@ -11,6 +11,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 #### Added
 
+- **`naics_code` on `ListProtestsOptions`.** Filters protests by the NAICS code at issue, which only SBA OHA size and NAICS appeals carry; GAO and COFC records never match it.
+
 - **`attachments(extracted_text)` — SLED document bodies on the Small plan and above** (Tango API 4.25.1; parity with tango-python, tango-node and tango-go). This SDK returns `Record`, so the leaf needs no type change — what it needed was saying so. Documented on `get_sled_opportunity`, on `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` and in `docs/API_REFERENCE.md`: the leaf must be **named** (no `SHAPE_SLED_*` constant includes it, and `attachments(*)` does not carry it, because the API resolves the body only for a caller who asked); the **key is absent rather than null** when the text is not being served; and a **contested document never returns text at any plan**. `suggested_shapes_do_not_name_the_paid_document_body` pins the constants. Searching document text stays ungated on every plan and returns no fragment of it.
 
 - **State, local and education (SLED) procurement** (Tango API 4.25.0; parity with tango-python, tango-node and tango-go). `resources/sled.rs` adds `list_sled_opportunities` / `get_sled_opportunity`, `list_sled_opportunity_revisions`, `get_sled_coverage`, `list_sled_forecasts` / `get_sled_forecast`, plus `iterate_sled_opportunities` and `iterate_sled_forecasts`. Four `bon`-derived options builders (`ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, `ListSledForecastsOptions`, `GetSledOptions`) name every one of the API's 27 solicitation filters and 13 forecast filters, and five `SHAPE_SLED_*` constants land in `shapes.rs`.
@@ -20,6 +22,15 @@ This project follows [Semantic Versioning](https://semver.org/).
   `active`, `has_documents` and `source_declared` are `Option<bool>` rather than `bool`, so `false` reaches the server as a filter value instead of collapsing into the default — the same reason `push_opt_bool` exists.
 
   `SHAPE_SLED_REVISIONS_MINIMAL` omits `changes` on purpose: the per-field before/after needs a Small plan, so naming it in a suggested shape would 403 a Free caller. `changed_fields` is in the shape and available at every plan.
+
+#### Changed
+
+- **`SHAPE_SLED_OPPORTUNITIES_MINIMAL` and `SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE` now include `delisted_at`**, matching the API's own default shapes. It is when the portal stopped listing a solicitation before its deadline, and it is what `status_reason = "delisted"` refers to.
+
+#### Fixed
+
+- **Protest enum values are documented in the casing the API returns.** `source_system` is lowercase (`gao`, `cofc`, `sba_oha`) and `outcome` is title-case (`Sustained`, `Denied`, …), not `"GAO"` / `"sustained"` as the rustdoc on `ListProtestsOptions` and `ProtestRecord` previously said. Filters were always case-insensitive, but code comparing returned values against the old examples would miss every match. The protests docs now also name SBA OHA as a source and list its extra outcomes (`Granted`, `Remanded`, `Reversed`, `Vacated`).
+- The `ListProtestsOptions::agency` rustdoc now describes what the filter accepts: a name, abbreviation or code, with `|` for multiple values.
 
 #### Documentation
 

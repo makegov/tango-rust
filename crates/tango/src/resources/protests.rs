@@ -1,5 +1,4 @@
-//! `GET /api/protests/` — bid-protest records from GAO and the U.S. Court of
-//! Federal Claims.
+//! `GET /api/protests/` — bid-protest records from GAO, the U.S. Court of Federal Claims (COFC), and the SBA Office of Hearings and Appeals (SBA OHA).
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -41,16 +40,20 @@ pub struct ListProtestsOptions {
     #[builder(default)]
     pub flat_lists: bool,
 
-    /// Source system filter (`"GAO"` or `"COFC"`).
+    /// Source system filter: `"gao"`, `"cofc"` or `"sba_oha"`.
+    ///
+    /// The API returns these lowercase; the filter itself is case-insensitive.
     #[builder(into)]
     pub source_system: Option<String>,
-    /// Outcome label (`"sustained"`, `"denied"`, …).
+    /// Outcome filter: `"Denied"`, `"Dismissed"`, `"Withdrawn"` or `"Sustained"`; SBA OHA adds `"Granted"`, `"Remanded"`, `"Reversed"` and `"Vacated"`.
+    ///
+    /// The API returns these title-case; the filter itself is case-insensitive.
     #[builder(into)]
     pub outcome: Option<String>,
     /// Case type filter.
     #[builder(into)]
     pub case_type: Option<String>,
-    /// Agency filter (CGAC code or name, depending on source system).
+    /// Agency filter: a name, abbreviation, or code (CGAC, FPDS, AAC). Multi-value OR via `|`.
     #[builder(into)]
     pub agency: Option<String>,
     /// Source-system case number filter.
@@ -59,6 +62,9 @@ pub struct ListProtestsOptions {
     /// Solicitation number filter.
     #[builder(into)]
     pub solicitation_number: Option<String>,
+    /// NAICS code at issue. Only SBA OHA size and NAICS appeals carry one, so GAO and COFC records never match.
+    #[builder(into)]
+    pub naics_code: Option<String>,
     /// Protester name filter.
     #[builder(into)]
     pub protester: Option<String>,
@@ -106,6 +112,7 @@ impl ListProtestsOptions {
             "solicitation_number",
             self.solicitation_number.as_deref(),
         );
+        push_opt(&mut q, "naics_code", self.naics_code.as_deref());
         push_opt(&mut q, "protester", self.protester.as_deref());
         push_opt(&mut q, "search", self.search.as_deref());
         push_opt(&mut q, "filed_date_after", self.filed_date_after.as_deref());
@@ -215,8 +222,8 @@ mod tests {
     #[test]
     fn list_protests_all_filters_emit() {
         let opts = ListProtestsOptions::builder()
-            .source_system("GAO")
-            .outcome("sustained")
+            .source_system("gao")
+            .outcome("Sustained")
             .case_type("Bid Protest")
             .agency("9700")
             .case_number("B-12345.1")
@@ -229,8 +236,8 @@ mod tests {
             .decision_date_before("2024-12-31")
             .build();
         let q = opts.to_query();
-        assert_eq!(get_q(&q, "source_system").as_deref(), Some("GAO"));
-        assert_eq!(get_q(&q, "outcome").as_deref(), Some("sustained"));
+        assert_eq!(get_q(&q, "source_system").as_deref(), Some("gao"));
+        assert_eq!(get_q(&q, "outcome").as_deref(), Some("Sustained"));
         assert_eq!(get_q(&q, "case_type").as_deref(), Some("Bid Protest"));
         assert_eq!(get_q(&q, "agency").as_deref(), Some("9700"));
         assert_eq!(get_q(&q, "case_number").as_deref(), Some("B-12345.1"));
@@ -250,6 +257,13 @@ mod tests {
             get_q(&q, "decision_date_before").as_deref(),
             Some("2024-12-31")
         );
+    }
+
+    #[test]
+    fn list_protests_naics_code_emits() {
+        let opts = ListProtestsOptions::builder().naics_code("541512").build();
+        let q = opts.to_query();
+        assert_eq!(get_q(&q, "naics_code").as_deref(), Some("541512"));
     }
 
     #[test]
@@ -312,8 +326,8 @@ mod tests {
             "case_id": "b-12345-1",
             "case_number": "B-12345.1",
             "title": "Acme Corp Protest",
-            "source_system": "GAO",
-            "outcome": "sustained",
+            "source_system": "gao",
+            "outcome": "Sustained",
             "filed_date": "2024-01-15",
             "decision_date": "2024-04-20",
             "agency": {"code": "9700", "name": "DoD"},
@@ -323,8 +337,8 @@ mod tests {
         assert_eq!(rec.case_id.as_deref(), Some("b-12345-1"));
         assert_eq!(rec.case_number.as_deref(), Some("B-12345.1"));
         assert_eq!(rec.title.as_deref(), Some("Acme Corp Protest"));
-        assert_eq!(rec.source_system.as_deref(), Some("GAO"));
-        assert_eq!(rec.outcome.as_deref(), Some("sustained"));
+        assert_eq!(rec.source_system.as_deref(), Some("gao"));
+        assert_eq!(rec.outcome.as_deref(), Some("Sustained"));
         assert_eq!(rec.filed_date.as_deref(), Some("2024-01-15"));
         assert_eq!(rec.decision_date.as_deref(), Some("2024-04-20"));
         // Unknown / not-first-classed fields land in `extra` via #[serde(flatten)].

@@ -124,6 +124,8 @@ Options: `ListGsaElibraryContractsOptions`, `GetGsaElibraryContractOptions`.
 | `list_protests(opts)` / `iterate_protests(opts)` | `GET /api/protests/` | `Page<Record>` / `PageStream<Record>` |
 | `get_protest(case_id, opts)` | `GET /api/protests/{case_id}/` | **`ProtestRecord`** (typed) |
 
+Records come from GAO, the U.S. Court of Federal Claims and the SBA Office of Hearings and Appeals. `source_system` is returned lowercase (`gao`, `cofc`, `sba_oha`) and `outcome` title-case (`Denied`, `Dismissed`, `Withdrawn`, `Sustained`; SBA OHA adds `Granted`, `Remanded`, `Reversed`, `Vacated`). Both filters are case-insensitive, but compare returned values in the API's casing. `naics_code` matches the NAICS code at issue in an SBA OHA size or NAICS appeal; GAO and COFC records carry none.
+
 Options: `ListProtestsOptions`, `GetProtestOptions`. No `ordering` (server rejects it for this resource).
 
 ### State & Local — SLED (`sled.rs`) — **Beta**
@@ -147,7 +149,7 @@ Options: `ListSledOpportunitiesOptions`, `ListSledOpportunityRevisionsOptions`, 
 
 `list_sled_opportunities` deliberately does **not** synthesize `status=open` client-side: doing so would make `active = Some(false)` unreachable, since `active=false` is the complement of open rather than an independent value. `active`, `has_documents` and `source_declared` are `Option<bool>` for the same reason — `false` has to be distinguishable from unset.
 
-**`status` is Tango's answer, not the portal's.** Derived from the portal's word, the deadline and the clock, and refreshed every fifteen minutes. The portal's own word is served as `source_status`, is frozen at last capture, and is **not** filterable — most of what it calls open already has a passed deadline.
+**`status` is Tango's answer, not the portal's.** Derived from the portal's word, the delisting, the deadline and the clock, and refreshed every fifteen minutes. A solicitation the portal stopped listing before its deadline carries `delisted_at`, reads `status = "closed"` and `status_reason = "delisted"` (a portal's own closed, awarded or cancelled still takes precedence); both suggested opportunity shapes include `delisted_at`. The portal's own word is served as `source_status`, is frozen at last capture, and is **not** filterable — most of what it calls open already has a passed deadline.
 
 **Category scheme tagging is mid-migration**, so `naics` matches only the small tagged share. Use `category_code` to match a code under any scheme, including the untagged pre-migration strings.
 

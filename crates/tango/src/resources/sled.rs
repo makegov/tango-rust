@@ -848,6 +848,26 @@ mod tests {
         }
     }
 
+    /// The API's list and detail default shapes both carry `delisted_at`, the field that explains `status_reason = "delisted"`.
+    #[test]
+    fn suggested_opportunity_shapes_carry_delisted_at() {
+        for (name, shape) in [
+            (
+                "SHAPE_SLED_OPPORTUNITIES_MINIMAL",
+                crate::SHAPE_SLED_OPPORTUNITIES_MINIMAL,
+            ),
+            (
+                "SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE",
+                crate::SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE,
+            ),
+        ] {
+            assert!(
+                shape.split(',').any(|f| f == "delisted_at"),
+                "{name} should carry `delisted_at`: {shape}"
+            );
+        }
+    }
+
     #[test]
     fn list_sled_forecasts_filters_emit() {
         let opts = ListSledForecastsOptions::builder()

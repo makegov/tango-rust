@@ -23,11 +23,11 @@ pub struct ProtestRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
-    /// Source system (`"GAO"`, `"COFC"`, etc.).
+    /// Source system: `"gao"`, `"cofc"` or `"sba_oha"` (lowercase).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_system: Option<String>,
 
-    /// Outcome label (`"sustained"`, `"denied"`, …).
+    /// Outcome: `"Denied"`, `"Dismissed"`, `"Withdrawn"` or `"Sustained"`; SBA OHA adds `"Granted"`, `"Remanded"`, `"Reversed"` and `"Vacated"`. `None` while a case is pending.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<String>,
 

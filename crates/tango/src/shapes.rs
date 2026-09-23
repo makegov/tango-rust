@@ -141,9 +141,11 @@ pub const SHAPE_ITDASHBOARD_INVESTMENTS_COMPREHENSIVE: &str = concat!(
 /// `description` is detail-only on the API — its median is around 550
 /// characters and its tail runs past 120,000 — so it is deliberately absent
 /// here. Name it explicitly, or pass `verbose=true` via `extra`.
+///
+/// `delisted_at` is when the portal stopped listing the solicitation before its deadline; when set, `status` is `closed` and `status_reason` is `delisted`, unless the portal itself already called it closed, awarded or cancelled. It is null for a solicitation never delisted, or seen again since.
 pub const SHAPE_SLED_OPPORTUNITIES_MINIMAL: &str = concat!(
     "opportunity_id,solicitation_number,solicitation_type,title,state,",
-    "jurisdiction,agency,status,status_reason,posted_date,response_deadline,",
+    "jurisdiction,agency,status,status_reason,delisted_at,posted_date,response_deadline,",
     "source_url,has_documents,first_seen_at,last_change_seen_at",
 );
 
@@ -161,7 +163,7 @@ pub const SHAPE_SLED_OPPORTUNITIES_MINIMAL: &str = concat!(
 pub const SHAPE_SLED_OPPORTUNITIES_COMPREHENSIVE: &str = concat!(
     "opportunity_id,solicitation_number,solicitation_type,",
     "solicitation_type_source,title,description,state,jurisdiction,agency,",
-    "status,status_reason,status_computed_at,source_status,source_url,",
+    "status,status_reason,delisted_at,status_computed_at,source_status,source_url,",
     "posted_date,response_deadline,response_deadline_original,",
     "bid_opening_date,bid_opening_raw,category_codes,has_documents,",
     "first_seen_at,last_seen_at,last_change_seen_at,",
