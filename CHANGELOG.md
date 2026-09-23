@@ -7,6 +7,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-09-23
+
 Pre-1.0 (SemVer 0.x): the removals under **Breaking** ship without a deprecation cycle.
 
 ### `makegov-tango`
