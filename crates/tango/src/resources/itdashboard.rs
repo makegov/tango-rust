@@ -78,6 +78,10 @@ pub struct ListItdashboardOptions {
     #[builder(into)]
     pub performance_risk: Option<String>,
 
+    /// Find the investment(s) that superseded a retired UII (e.g. `015-000000100`).
+    #[builder(into)]
+    pub previous_uii: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -96,6 +100,7 @@ impl ListItdashboardOptions {
             self.flat_lists,
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "previous_uii", self.previous_uii.as_deref());
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
         push_opt(&mut q, "agency_name", self.agency_name.as_deref());
         push_opt(
@@ -284,5 +289,14 @@ mod tests {
             }
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn list_itdashboard_previous_uii_emits() {
+        let q = ListItdashboardOptions::builder()
+            .previous_uii("015-000000100")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "previous_uii").as_deref(), Some("015-000000100"));
     }
 }

@@ -1,8 +1,8 @@
-//! IDV sub-resources: awards, child IDVs, transactions, summary, LCATs.
+//! IDV sub-resources: awards, child IDVs, transactions, LCATs.
 //!
 //! Endpoints under `/api/idvs/{key}/…/` that share a common parameter shape.
 //! The Go SDK uses a mix of `ListIDVsOptions` (awards/child-idvs),
-//! `ListOptions` (transactions/summary-awards), and `EntityLcatsOptions`
+//! `ListOptions` (transactions), and `EntityLcatsOptions`
 //! (lcats); the Rust port consolidates these behind a single
 //! [`IdvSubresourceOptions`] (pagination + shape + ordering + search + joiner)
 //! since the surface server-side params for these endpoints are identical at
@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 /// Options shared by every IDV sub-resource list endpoint
 /// (`/api/idvs/{key}/awards/`, `/child-idvs/`, `/transactions/`,
-/// `/summary/awards/`, `/lcats/`).
+/// `/lcats/`).
 ///
 /// Carries pagination + shape + ordering + search + joiner. Use the `extra`
 /// field to forward filters not yet first-classed on this struct.
@@ -137,37 +137,6 @@ impl Client {
         opts: IdvSubresourceOptions,
     ) -> PageStream<Record> {
         iterate_idv_subresource(self, key.to_string(), "transactions", opts)
-    }
-
-    /// `GET /api/idvs/{identifier}/summary/` — summary roll-up for an IDV.
-    ///
-    /// Deprecated: the v1.0.0 server returns 404 for this endpoint. Retained
-    /// for parity with the other SDKs; migrate to [`Client::get_idv`] with the
-    /// comprehensive shape.
-    #[deprecated(note = "Deprecated upstream; use get_idv with the comprehensive shape")]
-    pub async fn get_idv_summary(&self, key: &str) -> Result<Record> {
-        if key.is_empty() {
-            return Err(Error::Validation {
-                message: "get_idv_summary: key is required".into(),
-                response: None,
-            });
-        }
-        let path = format!("/api/idvs/{}/summary/", urlencoding(key));
-        self.get_json::<Record>(&path, &[]).await
-    }
-
-    /// `GET /api/idvs/{identifier}/summary/awards/` — awards belonging to an
-    /// IDV summary.
-    ///
-    /// Deprecated: the v1.0.0 server returns 404 for this endpoint. Retained
-    /// for parity with the other SDKs; migrate to [`Client::list_idv_awards`].
-    #[deprecated(note = "Deprecated upstream; use list_idv_awards")]
-    pub async fn list_idv_summary_awards(
-        &self,
-        key: &str,
-        opts: IdvSubresourceOptions,
-    ) -> Result<Page<Record>> {
-        list_idv_subresource(self, key, "summary/awards", opts).await
     }
 
     /// `GET /api/idvs/{key}/lcats/` — Labor Categories (LCATs) under an IDV.
@@ -287,17 +256,6 @@ mod tests {
             .list_idv_lcats("", IdvSubresourceOptions::default())
             .await
             .expect_err("must error");
-        match err {
-            Error::Validation { message, .. } => assert!(message.contains("key")),
-            other => panic!("expected Validation, got {other:?}"),
-        }
-    }
-
-    #[tokio::test]
-    #[allow(deprecated)]
-    async fn get_idv_summary_empty_key_returns_validation() {
-        let client = Client::builder().api_key("x").build().expect("build");
-        let err = client.get_idv_summary("").await.expect_err("must error");
         match err {
             Error::Validation { message, .. } => assert!(message.contains("key")),
             other => panic!("expected Validation, got {other:?}"),

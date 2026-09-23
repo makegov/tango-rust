@@ -37,7 +37,7 @@ tango-rust/                           (workspace root)
 │   │           ├── entity_subresources.rs
 │   │           ├── vehicles.rs
 │   │           ├── vehicle_subresources.rs
-│   │           ├── opportunities.rs   # opps / notices / forecasts / grants / attachment search
+│   │           ├── opportunities.rs   # opps / notices / forecasts / grants
 │   │           ├── otas.rs            # OTAs + OTIDVs
 │   │           ├── subawards.rs
 │   │           ├── gsa.rs

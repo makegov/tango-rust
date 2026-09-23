@@ -1,0 +1,3 @@
+# Keep `cargo update` from resolving dependencies that need a newer Rust than the workspace `rust-version`, so the committed lockfile keeps building on the MSRV.
+[resolver]
+incompatible-rust-versions = "fallback"

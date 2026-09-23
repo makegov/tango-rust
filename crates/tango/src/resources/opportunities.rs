@@ -3,8 +3,9 @@
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::{apply_pagination, push_opt, push_opt_bool, push_opt_u32};
+use crate::internal::{apply_pagination, push_opt, push_opt_bool, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
+use crate::resources::agencies::urlencoding;
 use crate::Record;
 use bon::Builder;
 use std::collections::BTreeMap;
@@ -90,6 +91,10 @@ pub struct ListOpportunitiesOptions {
     #[builder(into)]
     pub solicitation_number: Option<String>,
 
+    /// Opportunity ID filter.
+    #[builder(into)]
+    pub opportunity_id: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -149,6 +154,7 @@ impl ListOpportunitiesOptions {
             self.response_deadline_before.as_deref(),
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "opportunity_id", self.opportunity_id.as_deref());
         push_opt(&mut q, "set_aside", self.set_aside.as_deref());
         push_opt(
             &mut q,
@@ -231,6 +237,18 @@ pub struct ListNoticesOptions {
     #[builder(into)]
     pub solicitation_number: Option<String>,
 
+    /// Notice ID filter.
+    #[builder(into)]
+    pub notice_id: Option<String>,
+
+    /// Department filter: a name, abbreviation or code, with `|` for multiple values.
+    #[builder(into)]
+    pub department: Option<String>,
+
+    /// Contracting office filter: a name, abbreviation or code, with `|` for multiple values.
+    #[builder(into)]
+    pub office: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -274,6 +292,9 @@ impl ListNoticesOptions {
             self.response_deadline_before.as_deref(),
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "office", self.office.as_deref());
+        push_opt(&mut q, "department", self.department.as_deref());
+        push_opt(&mut q, "notice_id", self.notice_id.as_deref());
         push_opt(&mut q, "set_aside", self.set_aside.as_deref());
         push_opt(
             &mut q,
@@ -360,6 +381,10 @@ pub struct ListForecastsOptions {
     #[builder(into)]
     pub status: Option<String>,
 
+    /// Forecast ID filter.
+    #[builder(into)]
+    pub id: Option<String>,
+
     /// Escape hatch for filter keys not yet first-classed on this struct.
     #[builder(default)]
     pub extra: BTreeMap<String, String>,
@@ -397,6 +422,7 @@ impl ListForecastsOptions {
         );
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt(&mut q, "id", self.id.as_deref());
         push_opt(&mut q, "source_system", self.source_system.as_deref());
         push_opt(&mut q, "status", self.status.as_deref());
         for (k, v) in &self.extra {
@@ -445,6 +471,9 @@ pub struct ListGrantsOptions {
     /// CFDA number filter.
     #[builder(into)]
     pub cfda_number: Option<String>,
+    /// Grant identifier filter (exact match on `grant_id`).
+    #[builder(into)]
+    pub grant_id: Option<String>,
     /// Funding-categories filter (CSV).
     #[builder(into)]
     pub funding_categories: Option<String>,
@@ -496,6 +525,7 @@ impl ListGrantsOptions {
         push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(&mut q, "applicant_types", self.applicant_types.as_deref());
         push_opt(&mut q, "cfda_number", self.cfda_number.as_deref());
+        push_opt(&mut q, "grant_id", self.grant_id.as_deref());
         push_opt(
             &mut q,
             "funding_categories",
@@ -538,43 +568,6 @@ impl ListGrantsOptions {
             if !v.is_empty() {
                 q.push((k.clone(), v.clone()));
             }
-        }
-        q
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Opportunity attachment search
-// ---------------------------------------------------------------------------
-
-/// Options for [`Client::search_opportunity_attachments`] — semantic search
-/// over the extracted text of opportunity attachments (SOWs, PWSs, J&As).
-///
-/// `q` is required; an empty `q` causes the call to return
-/// [`Error::Validation`] before any network request.
-#[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct SearchOpportunityAttachmentsOptions {
-    /// Natural-language query. Required.
-    #[builder(into)]
-    pub q: Option<String>,
-    /// Maximum number of matches to return. `None` / `0` means
-    /// "use the server default".
-    #[builder(into)]
-    pub top_k: Option<u32>,
-    /// When true, returns the matched attachment text alongside metadata.
-    /// Defaults to false to keep responses small.
-    #[builder(default)]
-    pub include_extracted_text: bool,
-}
-
-impl SearchOpportunityAttachmentsOptions {
-    fn to_query(&self) -> Vec<(String, String)> {
-        let mut q = Vec::new();
-        push_opt(&mut q, "q", self.q.as_deref());
-        push_opt_u32(&mut q, "top_k", self.top_k);
-        if self.include_extracted_text {
-            q.push(("include_extracted_text".into(), "true".into()));
         }
         q
     }
@@ -661,23 +654,64 @@ impl Client {
         PageStream::new(self.clone(), fetch)
     }
 
-    /// `GET /api/opportunities/attachment-search/` — semantic search over
-    /// the extracted text of opportunity attachments (SOWs, PWSs, J&As).
-    ///
-    /// Returns [`Error::Validation`] when `opts.q` is missing or empty.
-    pub async fn search_opportunity_attachments(
+    /// `GET /api/opportunities/{opportunity_id}/` — a single opportunity.
+    pub async fn get_opportunity(
         &self,
-        opts: SearchOpportunityAttachmentsOptions,
+        opportunity_id: &str,
+        opts: Option<ListOptions>,
     ) -> Result<Record> {
-        if opts.q.as_deref().filter(|s| !s.is_empty()).is_none() {
+        if opportunity_id.is_empty() {
             return Err(Error::Validation {
-                message: "search_opportunity_attachments: q is required".into(),
+                message: "get_opportunity: opportunity_id is required".into(),
                 response: None,
             });
         }
-        let q = opts.to_query();
-        self.get_json::<Record>("/api/opportunities/attachment-search/", &q)
-            .await
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/opportunities/{}/", urlencoding(opportunity_id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/notices/{notice_id}/` — a single notice.
+    pub async fn get_notice(&self, notice_id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if notice_id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_notice: notice_id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/notices/{}/", urlencoding(notice_id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/forecasts/{id}/` — a single procurement forecast.
+    pub async fn get_forecast(&self, id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_forecast: id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/forecasts/{}/", urlencoding(id));
+        self.get_json::<Record>(&path, &q).await
+    }
+
+    /// `GET /api/grants/{grant_id}/` — a single grant opportunity.
+    pub async fn get_grant(&self, grant_id: &str, opts: Option<ListOptions>) -> Result<Record> {
+        if grant_id.is_empty() {
+            return Err(Error::Validation {
+                message: "get_grant: grant_id is required".into(),
+                response: None,
+            });
+        }
+        let mut q = Vec::new();
+        opts.unwrap_or_default().apply(&mut q);
+        let path = format!("/api/grants/{}/", urlencoding(grant_id));
+        self.get_json::<Record>(&path, &q).await
     }
 }
 
@@ -790,6 +824,7 @@ mod tests {
             .agency("9700")
             .applicant_types("11")
             .cfda_number("10.001")
+            .grant_id("GRANT-123")
             .funding_categories("AR")
             .funding_instruments("G")
             .opportunity_number("OPP-001")
@@ -802,59 +837,73 @@ mod tests {
         let q = opts.to_query();
         assert_eq!(get_q(&q, "applicant_types").as_deref(), Some("11"));
         assert_eq!(get_q(&q, "cfda_number").as_deref(), Some("10.001"));
+        assert_eq!(get_q(&q, "grant_id").as_deref(), Some("GRANT-123"));
         assert_eq!(get_q(&q, "funding_categories").as_deref(), Some("AR"));
         assert_eq!(get_q(&q, "funding_instruments").as_deref(), Some("G"));
         assert_eq!(get_q(&q, "opportunity_number").as_deref(), Some("OPP-001"));
         assert_eq!(get_q(&q, "status").as_deref(), Some("posted"));
     }
 
-    #[test]
-    fn attachment_search_emits_all_flags() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("statement of work cloud migration")
-            .top_k(5u32)
-            .include_extracted_text(true)
-            .build();
-        let q = opts.to_query();
-        assert_eq!(
-            get_q(&q, "q").as_deref(),
-            Some("statement of work cloud migration")
-        );
-        assert_eq!(get_q(&q, "top_k").as_deref(), Some("5"));
-        assert_eq!(get_q(&q, "include_extracted_text").as_deref(), Some("true"));
-    }
-
-    #[test]
-    fn attachment_search_top_k_zero_omitted() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("test query")
-            .top_k(0u32)
-            .build();
-        let q = opts.to_query();
-        assert!(!q.iter().any(|(k, _)| k == "top_k"));
-    }
-
-    #[test]
-    fn attachment_search_extracted_text_omitted_when_false() {
-        let opts = SearchOpportunityAttachmentsOptions::builder()
-            .q("test")
-            .build();
-        let q = opts.to_query();
-        assert!(!q.iter().any(|(k, _)| k == "include_extracted_text"));
+    #[tokio::test]
+    async fn get_grant_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_grant("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("grant_id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
     }
 
     #[tokio::test]
-    async fn search_opportunity_attachments_empty_q_returns_validation() {
+    async fn get_opportunity_empty_key_returns_validation() {
         let client = Client::builder().api_key("x").build().expect("build");
         let err = client
-            .search_opportunity_attachments(SearchOpportunityAttachmentsOptions::default())
+            .get_opportunity("", None)
             .await
             .expect_err("must error");
         match err {
-            Error::Validation { message, .. } => {
-                assert!(message.contains('q'));
-            }
+            Error::Validation { message, .. } => assert!(message.contains("opportunity_id")),
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn get_forecast_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_forecast("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_notice_empty_key_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client.get_notice("", None).await.expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("notice_id")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn identifier_and_org_filters_emit() {
+        let q = ListNoticesOptions::builder()
+            .notice_id("n1")
+            .department("DOD")
+            .office("W912")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "notice_id").as_deref(), Some("n1"));
+        assert_eq!(get_q(&q, "department").as_deref(), Some("DOD"));
+        assert_eq!(get_q(&q, "office").as_deref(), Some("W912"));
+        let q = ListOpportunitiesOptions::builder()
+            .opportunity_id("o1")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "opportunity_id").as_deref(), Some("o1"));
+        let q = ListForecastsOptions::builder().id("42").build().to_query();
+        assert_eq!(get_q(&q, "id").as_deref(), Some("42"));
     }
 }

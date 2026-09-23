@@ -19,6 +19,31 @@ use bon::Builder;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+/// Options for [`Client::get_entity_budget_flows`].
+#[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct EntityBudgetFlowsOptions {
+    /// 1-based page number.
+    #[builder(into)]
+    pub page: Option<u32>,
+    /// Page size (default 25, server caps at 100).
+    #[builder(into)]
+    pub limit: Option<u32>,
+    /// Restrict to one fiscal year (e.g. `2024`).
+    pub fiscal_year: Option<u32>,
+}
+
+impl EntityBudgetFlowsOptions {
+    fn to_query(&self) -> Vec<(String, String)> {
+        let mut q = Vec::new();
+        apply_pagination(&mut q, self.page, self.limit, None, None, false, false);
+        if let Some(fy) = self.fiscal_year {
+            q.push(("fiscal_year".into(), fy.to_string()));
+        }
+        q
+    }
+}
+
 /// Options shared by every entity sub-resource list endpoint
 /// (`/api/entities/{uei}/contracts/`, `/idvs/`, `/otas/`, `/otidvs/`,
 /// `/subawards/`, `/lcats/`).
@@ -200,6 +225,26 @@ impl Client {
         iterate_entity_subresource(self, uei.to_string(), "lcats", opts)
     }
 
+    /// `GET /api/entities/{uei}/budget-flows/` — the federal accounts that paid this entity, largest `contract_obligated` first, each with its budget-account context.
+    ///
+    /// Contract flows only: grant and assistance flows are not in this index.
+    pub async fn get_entity_budget_flows(
+        &self,
+        uei: &str,
+        opts: Option<EntityBudgetFlowsOptions>,
+    ) -> Result<Page<Record>> {
+        if uei.is_empty() {
+            return Err(Error::Validation {
+                message: "get_entity_budget_flows: uei is required".into(),
+                response: None,
+            });
+        }
+        let q = opts.unwrap_or_default().to_query();
+        let path = format!("/api/entities/{}/budget-flows/", urlencoding(uei));
+        let bytes = self.get_bytes(&path, &q).await?;
+        Page::decode(&bytes)
+    }
+
     /// `GET /api/entities/{uei}/metrics/{months}/{period_grouping}/` — rolling
     /// windowed metrics for this entity. Mirrors the signature of the sibling
     /// SDKs (Node / Python / Go).
@@ -343,6 +388,35 @@ mod tests {
         let client = Client::builder().api_key("x").build().expect("build");
         let err = client
             .list_entity_subawards("", EntitySubresourceOptions::default())
+            .await
+            .expect_err("must error");
+        match err {
+            Error::Validation { message, .. } => assert!(message.contains("uei")),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn budget_flows_options_emit_fiscal_year() {
+        let q = EntityBudgetFlowsOptions::builder()
+            .fiscal_year(2024u32)
+            .limit(10u32)
+            .build()
+            .to_query();
+        assert_eq!(
+            q,
+            vec![
+                ("limit".to_string(), "10".to_string()),
+                ("fiscal_year".to_string(), "2024".to_string())
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn get_entity_budget_flows_empty_uei_returns_validation() {
+        let client = Client::builder().api_key("x").build().expect("build");
+        let err = client
+            .get_entity_budget_flows("", None)
             .await
             .expect_err("must error");
         match err {

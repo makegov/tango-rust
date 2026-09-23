@@ -2,10 +2,13 @@
 //! methods on [`Client`](crate::Client) and exports its `*Options` builders.
 
 pub(crate) mod agencies;
+pub(crate) mod budget;
 pub(crate) mod contract_appeals;
 pub(crate) mod contracts;
+pub(crate) mod dibbs;
 pub(crate) mod entities;
 pub(crate) mod entity_subresources;
+pub(crate) mod exclusions;
 pub(crate) mod gsa;
 pub(crate) mod idv_subresources;
 pub(crate) mod idvs;
@@ -18,6 +21,7 @@ pub(crate) mod opportunities;
 pub(crate) mod otas;
 pub(crate) mod protests;
 pub(crate) mod resolve_validate;
+pub(crate) mod sbir;
 pub(crate) mod sled;
 pub(crate) mod subawards;
 pub(crate) mod vehicle_subresources;
@@ -28,10 +32,17 @@ pub use agencies::{
     AgencyContractsOptions, GetAgencyOptions, ListAgenciesOptions,
     ListAgencyAwardingContractsOptions, ListAgencyFundingContractsOptions,
 };
+pub use budget::{
+    BudgetAccountQuartersOptions, BudgetAccountRecipientsOptions, ListBudgetAccountsOptions,
+};
 pub use contract_appeals::{GetContractAppealOptions, ListContractAppealsOptions};
 pub use contracts::ListContractsOptions;
+pub use dibbs::{
+    GetDibbsOptions, ListDibbsAwardsOptions, ListDibbsRfpsOptions, ListDibbsRfqsOptions,
+};
 pub use entities::{GetEntityOptions, ListEntitiesOptions};
-pub use entity_subresources::EntitySubresourceOptions;
+pub use entity_subresources::{EntityBudgetFlowsOptions, EntitySubresourceOptions};
+pub use exclusions::{GetExclusionOptions, ListExclusionsOptions};
 pub use gsa::{GetGsaElibraryContractOptions, ListGsaElibraryContractsOptions};
 pub use idv_subresources::IdvSubresourceOptions;
 pub use idvs::{GetIDVOptions, ListIDVsOptions};
@@ -48,12 +59,12 @@ pub use metrics::{
 };
 pub use opportunities::{
     ListForecastsOptions, ListGrantsOptions, ListNoticesOptions, ListOpportunitiesOptions,
-    SearchOpportunityAttachmentsOptions,
 };
 pub use otas::{
     GetOTAOptions, GetOTIDVOptions, ListOTAsOptions, ListOTIDVAwardsOptions, ListOTIDVsOptions,
 };
 pub use protests::{GetProtestOptions, ListProtestsOptions};
+pub use sbir::{GetSbirOptions, ListSbirSolicitationsOptions, ListSbirTopicsOptions};
 pub use sled::{
     GetSledOptions, ListSledForecastsOptions, ListSledOpportunitiesOptions,
     ListSledOpportunityRevisionsOptions,
