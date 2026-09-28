@@ -5,9 +5,9 @@ use serde_json::json;
 use std::time::Duration;
 use tango::{
     BudgetAccountQuartersOptions, BudgetAccountRecipientsOptions, Client, EntityBudgetFlowsOptions,
-    GetDibbsOptions, GetExclusionOptions, GetSbirOptions, ListDibbsAwardsOptions,
-    ListDibbsRfpsOptions, ListDibbsRfqsOptions, ListExclusionsOptions,
-    ListSbirSolicitationsOptions, ListSbirTopicsOptions,
+    Error, GetDibbsOptions, GetEbuyRequestOptions, GetExclusionOptions, GetSbirOptions,
+    ListDibbsAwardsOptions, ListDibbsRfpsOptions, ListDibbsRfqsOptions, ListEbuyRequestsOptions,
+    ListExclusionsOptions, ListSbirSolicitationsOptions, ListSbirTopicsOptions,
 };
 
 fn make_client(server: &MockServer) -> Client {
@@ -365,4 +365,160 @@ async fn contract_sub_routes() {
         .expect("txns");
     subs.assert_async().await;
     txns.assert_async().await;
+}
+
+#[tokio::test]
+async fn ebuy_routes() {
+    let server = MockServer::start_async().await;
+    let list = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/")
+                .query_param("status", "Open")
+                .query_param("sin", "54151S")
+                .query_param("ordering", "-close_date");
+            then.status(200)
+                .json_body(page(json!([{"rfq_id": "RFQ1835158"}])));
+        })
+        .await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1835158/")
+                .query_param("shape", "rfq_id,attachments(*)");
+            then.status(200).json_body(json!({
+                "rfq_id": "RFQ1835158",
+                "attachments": [{"doc_seq_num": 1, "is_link": false}]
+            }));
+        })
+        .await;
+    let access = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/ebuy/access/");
+            then.status(200).json_body(json!({
+                "enabled": false,
+                "reason": "tier_required",
+                "contracts": []
+            }));
+        })
+        .await;
+    let c = make_client(&server);
+    let p = c
+        .list_ebuy_requests(
+            ListEbuyRequestsOptions::builder()
+                .status("Open")
+                .sin("54151S")
+                .ordering("-close_date")
+                .build(),
+        )
+        .await
+        .expect("list");
+    assert_eq!(p.results.len(), 1);
+    let rec = c
+        .get_ebuy_request(
+            "RFQ1835158",
+            Some(
+                GetEbuyRequestOptions::builder()
+                    .shape("rfq_id,attachments(*)")
+                    .build(),
+            ),
+        )
+        .await
+        .expect("get");
+    assert_eq!(
+        rec.get("rfq_id").and_then(serde_json::Value::as_str),
+        Some("RFQ1835158")
+    );
+    let a = c.get_ebuy_access().await.expect("access");
+    assert!(!a.enabled);
+    assert_eq!(a.reason.as_deref(), Some("tier_required"));
+    list.assert_async().await;
+    get.assert_async().await;
+    access.assert_async().await;
+}
+
+#[tokio::test]
+async fn ebuy_attachment_url_returns_redirect_target_without_following_it() {
+    let server = MockServer::start_async().await;
+    let target = server.url("/presigned/doc.pdf?X-Amz-Signature=abc");
+    let download = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1835158/attachments/2/download/")
+                .header("X-API-KEY", "test-key");
+            then.status(302).header("Location", target.as_str());
+        })
+        .await;
+    let presigned = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/presigned/doc.pdf");
+            then.status(200).body("%PDF");
+        })
+        .await;
+    let url = make_client(&server)
+        .get_ebuy_attachment_url("RFQ1835158", 2)
+        .await
+        .expect("url");
+    assert_eq!(url, target);
+    download.assert_async().await;
+    presigned.assert_hits_async(0).await;
+}
+
+#[tokio::test]
+async fn ebuy_attachment_url_resolves_a_relative_location() {
+    let server = MockServer::start_async().await;
+    let _m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1/attachments/1/download/");
+            then.status(302).header("Location", "/files/doc.pdf");
+        })
+        .await;
+    let url = make_client(&server)
+        .get_ebuy_attachment_url("RFQ1", 1)
+        .await
+        .expect("url");
+    assert_eq!(url, server.url("/files/doc.pdf"));
+}
+
+#[tokio::test]
+async fn ebuy_attachment_url_surfaces_the_link_of_a_link_entry() {
+    let server = MockServer::start_async().await;
+    let _m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1/attachments/3/download/");
+            then.status(400).json_body(json!({
+                "detail": "This entry is an external link, not a stored document.",
+                "url": "https://example.test/spec"
+            }));
+        })
+        .await;
+    let err = make_client(&server)
+        .get_ebuy_attachment_url("RFQ1", 3)
+        .await
+        .unwrap_err();
+    match err {
+        Error::ExternalLink { url, .. } => assert_eq!(url, "https://example.test/spec"),
+        other => panic!("expected ExternalLink, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn ebuy_attachment_url_maps_uncaptured_document_to_not_found() {
+    let server = MockServer::start_async().await;
+    let _m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1/attachments/4/download/");
+            then.status(404).json_body(json!({
+                "detail": "The document for this attachment has not been captured yet."
+            }));
+        })
+        .await;
+    let err = make_client(&server)
+        .get_ebuy_attachment_url("RFQ1", 4)
+        .await
+        .unwrap_err();
+    assert!(matches!(err, Error::NotFound { .. }), "{err:?}");
 }

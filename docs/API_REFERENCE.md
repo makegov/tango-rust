@@ -195,6 +195,23 @@ Options: `ListDibbsRfqsOptions`, `ListDibbsRfpsOptions`, `ListDibbsAwardsOptions
 - **An award row is one line item, and `total_contract_price` is the order total repeated on every line.** Never sum it across rows; deduplicate on `award_number` + `delivery_order_number` first.
 - `entity` matches only awards whose CAGE code resolved to a registered entity; `awardee_cage` reaches every award.
 
+### GSA eBuy (`ebuy.rs`)
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_ebuy_requests(opts)` / `iterate_ebuy_requests(opts)` | `GET /api/ebuy/requests/` | `Page<Record>` / `PageStream<Record>` |
+| `get_ebuy_request(rfq_id, opts)` | `GET /api/ebuy/requests/{rfq_id}/` | `Record` |
+| `get_ebuy_attachment_url(rfq_id, doc_seq_num)` | `GET /api/ebuy/requests/{rfq_id}/attachments/{doc_seq_num}/download/` | `String` (the redirect target) |
+| `get_ebuy_access()` | `GET /api/ebuy/access/` | **`EbuyAccess`** (typed) |
+
+Options: `ListEbuyRequestsOptions` (`search`, `rfq_id`, `reference_number`, `request_type`, `status`, `sin`, `schedule`, `buyer_agency`, `agency`, `contract_number`, `issue_date_after` / `_before`, `close_date_after` / `_before`, `ordering` over `issue_date`, `close_date`, `last_seen` and `modified`), `GetEbuyRequestOptions`. Shape: `SHAPE_EBUY_REQUESTS_MINIMAL`, which mirrors the API's default list shape. Available from Tango API 5.1.0.
+
+**Requires the Pro plan, and is scoped to your own GSA schedule contracts.** You see a request only while your account is linked to a contract it was posted under. With no linked contract the list is **empty rather than an error**, so call `get_ebuy_access` to tell "no access" from "no matches": it returns `enabled`, a `reason` (`tier_required` or `no_contract_grant`; `tier_required` wins when both apply) and your linked `contracts`. A request outside your scope 404s on lookup, the same as an unknown id. `contract_number` narrows to one of your own contracts; a contract you are not linked to returns nothing.
+
+**`status` is frozen at the state it was last seen in.** Only currently-active requests are published, so a request that closes stops appearing rather than getting a final row: `Open` means "open the last time it was seen". Read `last_seen` for staleness. The contract number a request was posted under is never returned in any payload, and `buyer_agency_code` and some other buyer and contact fields are sparse on older requests.
+
+**`get_ebuy_attachment_url` does not follow the redirect.** The API answers with a redirect to a presigned URL valid for about five minutes; the method returns that URL, so fetch it promptly. It runs on a client with redirects disabled (override it with the builder's `no_redirect_http_client` if your proxy or TLS setup must apply). An attachment with `is_link = true` has no stored document: the call returns `Error::ExternalLink { url, .. }` carrying the link. A document not yet captured returns `Error::NotFound`.
+
 ### Exclusions (`exclusions.rs`)
 
 SAM.gov exclusions: debarments, suspensions and other ineligibility records.

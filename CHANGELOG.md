@@ -7,6 +7,20 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### `makegov-tango`
+
+#### Added
+
+- **GSA eBuy requests** (Tango API 5.1.0). `resources/ebuy.rs` adds `list_ebuy_requests` / `iterate_ebuy_requests`, `get_ebuy_request`, `get_ebuy_attachment_url` and `get_ebuy_access`, with `ListEbuyRequestsOptions` (every filter the endpoint accepts, plus `ordering`), `GetEbuyRequestOptions`, the typed `models::EbuyAccess` and `SHAPE_EBUY_REQUESTS_MINIMAL`.
+
+  **The resource needs the Pro plan and is scoped to your own GSA schedule contracts.** With no linked contract the list is empty rather than an error; `get_ebuy_access` returns `enabled`, a `reason` (`tier_required` or `no_contract_grant`) and your linked `contracts`, which is how to tell "no access" from "no matches". **`status` is frozen at the state it was last seen in** — a request that closes stops appearing rather than getting a final row — so read `last_seen` for staleness.
+
+  **`get_ebuy_attachment_url` returns the redirect target instead of following it**: the API redirects to a presigned URL valid for about five minutes, and following it would download the document and send your API key to the download host. The call runs on a client with redirects disabled, which the new `no_redirect_http_client` builder option overrides. An attachment that is an outbound link returns the new `Error::ExternalLink { url, .. }` variant (status 400, not retryable).
+
+#### Changed
+
+- The retry loop is shared between body-returning requests and the redirect-reading call, so `get_ebuy_attachment_url` retries 429, 5xx and transport failures exactly as every other method does.
+
 ## [0.2.0] — 2026-09-23
 
 Pre-1.0 (SemVer 0.x): the removals under **Breaking** ship without a deprecation cycle.

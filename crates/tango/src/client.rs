@@ -25,6 +25,7 @@ pub(crate) struct ClientInner {
     pub(crate) api_key: String,
     pub(crate) base_url: String,
     pub(crate) http: reqwest::Client,
+    pub(crate) http_no_redirect: reqwest::Client,
     pub(crate) timeout: Duration,
     pub(crate) retries: u32,
     pub(crate) retry_backoff: Duration,
@@ -129,6 +130,14 @@ impl Client {
         /// supplied, its built-in timeout is ignored — per-request
         /// deadlines are applied here.
         http_client: Option<reqwest::Client>,
+        /// Custom `reqwest::Client` for the few calls that must read a redirect
+        /// rather than follow it, such as
+        /// [`get_ebuy_attachment_url`](Client::get_ebuy_attachment_url). It must
+        /// be built with `redirect(reqwest::redirect::Policy::none())`. Defaults
+        /// to a plain client with redirects disabled, so set it alongside
+        /// `http_client` when your proxy or TLS setup has to apply to those
+        /// calls too.
+        no_redirect_http_client: Option<reqwest::Client>,
     ) -> Result<Self> {
         let api_key = match api_key.filter(|s| !s.is_empty()) {
             Some(k) => k,
@@ -153,12 +162,20 @@ impl Client {
                 .build()
                 .map_err(|e| Error::Build(format!("build reqwest client: {e}")))?,
         };
+        let http_no_redirect = match no_redirect_http_client {
+            Some(c) => c,
+            None => reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .map_err(|e| Error::Build(format!("build reqwest client: {e}")))?,
+        };
 
         Ok(Self {
             inner: Arc::new(ClientInner {
                 api_key,
                 base_url,
                 http,
+                http_no_redirect,
                 timeout,
                 retries,
                 retry_backoff,
@@ -245,6 +262,17 @@ impl Client {
     ) -> Result<Vec<u8>> {
         let url = self.build_url(path, query)?;
         transport::send_with_retries(&self.inner, reqwest::Method::GET, url, Body::None).await
+    }
+
+    /// Internal: GET `path` without following redirects and return the
+    /// resolved `Location` of the 3xx response.
+    pub(crate) async fn get_redirect_location(
+        &self,
+        path: &str,
+        query: &[(String, String)],
+    ) -> Result<String> {
+        let url = self.build_url(path, query)?;
+        transport::redirect_location_with_retries(&self.inner, url).await
     }
 
     /// Internal: POST `path` with JSON `body`, decode response as `T`.

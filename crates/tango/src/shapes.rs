@@ -257,3 +257,12 @@ pub const SHAPE_SBIR_SOLICITATIONS_MINIMAL: &str = concat!(
     "solicitation_id,solicitation_number,title,program,activity,",
     "cycle_name,solicitation_status,year,start_date,end_date",
 );
+
+/// Suggested list shape for [`Client::list_ebuy_requests`](crate::Client::list_ebuy_requests).
+///
+/// Mirrors the API's default list shape. `description` is detail-only; `attachment_count` says whether a detail fetch is worth it.
+pub const SHAPE_EBUY_REQUESTS_MINIMAL: &str = concat!(
+    "rfq_id,request_type,title,schedule,sin,status,buyer_name,buyer_agency,",
+    "buyer_agency_code,reference_number,issue_date,close_date,attachment_count,",
+    "link_count,last_seen",
+);
