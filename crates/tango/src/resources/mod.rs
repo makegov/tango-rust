@@ -6,6 +6,7 @@ pub(crate) mod budget;
 pub(crate) mod contract_appeals;
 pub(crate) mod contracts;
 pub(crate) mod dibbs;
+pub(crate) mod ebuy;
 pub(crate) mod entities;
 pub(crate) mod entity_subresources;
 pub(crate) mod exclusions;
@@ -40,6 +41,7 @@ pub use contracts::ListContractsOptions;
 pub use dibbs::{
     GetDibbsOptions, ListDibbsAwardsOptions, ListDibbsRfpsOptions, ListDibbsRfqsOptions,
 };
+pub use ebuy::{GetEbuyRequestOptions, ListEbuyRequestsOptions};
 pub use entities::{GetEntityOptions, ListEntitiesOptions};
 pub use entity_subresources::{EntityBudgetFlowsOptions, EntitySubresourceOptions};
 pub use exclusions::{GetExclusionOptions, ListExclusionsOptions};

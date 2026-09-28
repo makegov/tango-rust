@@ -108,6 +108,7 @@ All 34 constants live in `shapes.rs` and are re-exported at the crate root. They
 | `SHAPE_SLED_FORECASTS_MINIMAL` | `list_sled_forecasts` | forecast identity, agency, advertisement estimate, value band |
 | `SHAPE_SLED_FORECASTS_COMPREHENSIVE` | `get_sled_forecast` | the above + description, organization, contact |
 | `SHAPE_BUDGET_ACCOUNTS_MINIMAL` | `list_budget_accounts` | the API's default: identity + lifecycle dollars + capped ratios |
+| `SHAPE_EBUY_REQUESTS_MINIMAL` | `list_ebuy_requests` | the API's default: request identity, schedule/SIN, frozen status, buyer, dates, attachment and link counts, last_seen |
 | `SHAPE_DIBBS_RFQS_MINIMAL` | `list_dibbs_rfqs` | uuid, solicitation, NSN, part number, nomenclature, quantity, dates, is_open |
 | `SHAPE_DIBBS_RFPS_MINIMAL` | `list_dibbs_rfps` | uuid, solicitation, NSN, part number, nomenclature, dates, is_open |
 | `SHAPE_DIBBS_AWARDS_MINIMAL` | `list_dibbs_awards` | uuid, award number, solicitation, NSN, part, awardee CAGE, award date, order total |
