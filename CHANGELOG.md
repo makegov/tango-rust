@@ -7,11 +7,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
+### `makegov-tango`
+
+#### Added
 
 - **Vehicle company counts** (Tango API 5.8.0): `SHAPE_VEHICLES_MINIMAL` and `SHAPE_VEHICLES_COMPREHENSIVE` now request `holder_count` (distinct companies holding one of the vehicle's IDVs) and `order_winner_count` (distinct companies that have won a task order under it), next to `awardee_count`.
 
-### Deprecated
+#### Deprecated
 
 - **`awardee_count` on vehicles** is deprecated by the Tango API as an alias of `order_winner_count`, and is removed at the API's next major version. The vehicle shapes still request it so existing readers keep working; read `order_winner_count` instead.
 
