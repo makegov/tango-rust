@@ -7,6 +7,19 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### `makegov-tango`
+
+#### Added
+
+- **Budget-account `source_anomalies` and `account_category`** (Tango API 5.7.0). `models::BudgetSourceAnomaly` (with `BudgetSourceAnomalySource` and `BudgetSourceAnomalyRow`) types each element of a row's `source_anomalies` list, and `BudgetSourceAnomaly::from_record` decodes it from a `list_budget_accounts` / `get_budget_account` record, returning an empty list when the field is `[]`, absent or null. Every field is optional and `code` is an open string (`contract_exceeds_obligations`, `assistance_exceeds_obligations`, `contract_without_obligations` today). There is no filter on anomalies.
+- **Budget-account `data_through_period`** (Tango API 5.8.0): the File A fiscal period (1–12) an account-year's figures run through, so the latest fiscal year is partial until it reaches 12; null when the row has no File A data. `models::budget_data_through_period` reads it from a record as `Option<u8>`, and `ListBudgetAccountsOptions` gains `data_through_period`, `data_through_period_gte`, `data_through_period_lte` (sent as `__gte` / `__lte`) and `data_through_period_isnull` (sent as `data_through_period__isnull`).
+- **`account_category` and `account_category_in` on `ListBudgetAccountsOptions`** (sent as `account_category` and `account_category__in`). Values are `budgetary` or `credit_financing` today; credit financing accounts have null `enacted_ba` and are left out of organization budget totals.
+
+#### Changed
+
+- **`SHAPE_BUDGET_ACCOUNTS_MINIMAL` matches the API's default shape again.** It adds `data_through_period` (right after `fiscal_year`), `account_category` and `source_anomalies`, plus `attribution_status`, `attribution_confidence` and `contract_obligated_estimated`, which the API's default already carried.
+- **The API's default budget-account ordering now puts null `enacted_ba` last** within each fiscal year, with `id` breaking ties so pages are stable. No SDK change is needed; the `ordering` field documents it.
+
 ## [0.2.0] — 2026-09-23
 
 Pre-1.0 (SemVer 0.x): the removals under **Breaking** ship without a deprecation cycle.
