@@ -1,4 +1,4 @@
-//! `BudgetSourceAnomaly` — typed view of a budget account's `source_anomalies` list.
+//! `BudgetSourceAnomaly` — typed view of a budget account's `source_anomalies` list, plus a reader for its `data_through_period`.
 
 use crate::Record;
 use serde::{Deserialize, Serialize};
@@ -59,6 +59,17 @@ pub struct BudgetSourceAnomaly {
     /// Forward-compat catch-all for server-side fields the SDK does not yet model.
     #[serde(flatten, default)]
     pub extra: HashMap<String, Value>,
+}
+
+/// Read the `data_through_period` field of a budget-account [`Record`]: the File A fiscal period (1-12) the account-year's figures run through.
+///
+/// Below 12 the fiscal year is partial.
+/// Returns `None` when the row has no File A data (null), the field is not in the requested shape, or the value is not a whole number from 0 to 255.
+pub fn budget_data_through_period(record: &Record) -> Option<u8> {
+    record
+        .get("data_through_period")
+        .and_then(Value::as_u64)
+        .and_then(|n| u8::try_from(n).ok())
 }
 
 impl BudgetSourceAnomaly {

@@ -16,9 +16,10 @@ pub const SHAPE_CONTRACTS_MINIMAL: &str =
 
 /// Default shape for [`Client::list_budget_accounts`](crate::Client::list_budget_accounts) and [`Client::get_budget_account`](crate::Client::get_budget_account).
 ///
-/// Mirrors the API's own default budget-account shape, including `account_category` and `source_anomalies` (decode the latter with [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record)).
+/// Mirrors the API's own default budget-account shape, including `data_through_period`, `account_category` and `source_anomalies` (decode the latter with [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record)).
 pub const SHAPE_BUDGET_ACCOUNTS_MINIMAL: &str = concat!(
-    "id,federal_account_symbol,fiscal_year,agency_code,agency_name,bureau_name,",
+    "id,federal_account_symbol,fiscal_year,data_through_period,agency_code,agency_name,",
+    "bureau_name,",
     "account_title,bea_category,on_off_budget,subfunction_code,account_category,",
     "requested_ba,enacted_ba,apportioned,obligated_total,outlayed_total,",
     "unobligated_balance,contract_obligated,attribution_status,",

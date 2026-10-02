@@ -22,7 +22,10 @@ pub mod validate;
 pub mod webhook;
 
 pub use agency::AgencyRecord;
-pub use budget::{BudgetSourceAnomaly, BudgetSourceAnomalyRow, BudgetSourceAnomalySource};
+pub use budget::{
+    budget_data_through_period, BudgetSourceAnomaly, BudgetSourceAnomalyRow,
+    BudgetSourceAnomalySource,
+};
 pub use contract_appeal::ContractAppealRecord;
 pub use ebuy::EbuyAccess;
 pub use protest::ProtestRecord;
