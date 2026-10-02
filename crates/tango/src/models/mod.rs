@@ -13,6 +13,7 @@
 //! through `serde_json::to_value` will re-emit those extras.
 
 pub mod agency;
+pub mod budget;
 pub mod contract_appeal;
 pub mod protest;
 pub mod resolve;
@@ -20,6 +21,7 @@ pub mod validate;
 pub mod webhook;
 
 pub use agency::AgencyRecord;
+pub use budget::{BudgetSourceAnomaly, BudgetSourceAnomalyRow, BudgetSourceAnomalySource};
 pub use contract_appeal::ContractAppealRecord;
 pub use protest::ProtestRecord;
 pub use resolve::{ResolveCandidate, ResolveInput, ResolveResult, ResolveTargetType};

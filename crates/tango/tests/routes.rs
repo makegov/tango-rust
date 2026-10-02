@@ -5,8 +5,8 @@ use serde_json::json;
 use std::time::Duration;
 use tango::{
     BudgetAccountQuartersOptions, BudgetAccountRecipientsOptions, Client, EntityBudgetFlowsOptions,
-    GetDibbsOptions, GetExclusionOptions, GetSbirOptions, ListDibbsAwardsOptions,
-    ListDibbsRfpsOptions, ListDibbsRfqsOptions, ListExclusionsOptions,
+    GetDibbsOptions, GetExclusionOptions, GetSbirOptions, ListBudgetAccountsOptions,
+    ListDibbsAwardsOptions, ListDibbsRfpsOptions, ListDibbsRfqsOptions, ListExclusionsOptions,
     ListSbirSolicitationsOptions, ListSbirTopicsOptions,
 };
 
@@ -233,6 +233,42 @@ async fn sbir_routes() {
     topic.assert_async().await;
     sols.assert_async().await;
     sol.assert_async().await;
+}
+
+#[tokio::test]
+async fn list_budget_accounts_filters_by_category_and_decodes_anomalies() {
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/budget/accounts/")
+                .query_param("account_category__in", "budgetary,credit_financing");
+            then.status(200).json_body(page(json!([{
+                "federal_account_symbol": "020-4159",
+                "account_category": "budgetary",
+                "source_anomalies": [{
+                    "code": "contract_exceeds_obligations",
+                    "action": "capped",
+                    "reported_value": 73_470_455_401.8,
+                    "served_value": 4_748_670_061.77
+                }]
+            }])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_budget_accounts(
+            ListBudgetAccountsOptions::builder()
+                .account_category_in("budgetary,credit_financing")
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    let row = &p.results[0];
+    assert_eq!(row["account_category"], json!("budgetary"));
+    let anomalies = tango::models::BudgetSourceAnomaly::from_record(row).expect("decode");
+    assert_eq!(anomalies[0].action.as_deref(), Some("capped"));
+    assert_eq!(anomalies[0].served_value, Some(4_748_670_061.77));
 }
 
 #[tokio::test]
