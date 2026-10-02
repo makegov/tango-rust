@@ -110,7 +110,7 @@ pub const SHAPE_IDVS_COMPREHENSIVE: &str = concat!(
 pub const SHAPE_VEHICLES_MINIMAL: &str = concat!(
     "uuid,solicitation_identifier,is_synthetic_solicitation,program_acronym,",
     "organization_id,organization,vehicle_type,description,",
-    "idv_count,awardee_count,order_count,total_obligated,",
+    "idv_count,awardee_count,holder_count,order_winner_count,order_count,total_obligated,",
     "vehicle_obligations,vehicle_contracts_value,latest_award_date,",
     "solicitation_title,solicitation_date",
 );
@@ -122,7 +122,7 @@ pub const SHAPE_VEHICLES_COMPREHENSIVE: &str = concat!(
     "solicitation_title,solicitation_description,solicitation_date,opportunity_id,",
     "naics_code,psc_code,set_aside,",
     "fiscal_year,award_date,latest_award_date,last_date_to_order,",
-    "description,idv_count,awardee_count,order_count,total_obligated,",
+    "description,idv_count,awardee_count,holder_count,order_winner_count,order_count,total_obligated,",
     "vehicle_obligations,vehicle_contracts_value,",
     "type_of_idc,contract_type,metrics(*)",
 );
@@ -257,3 +257,24 @@ pub const SHAPE_SBIR_SOLICITATIONS_MINIMAL: &str = concat!(
     "solicitation_id,solicitation_number,title,program,activity,",
     "cycle_name,solicitation_status,year,start_date,end_date",
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vehicle_shapes_carry_company_counts() {
+        for (name, shape) in [
+            ("SHAPE_VEHICLES_MINIMAL", SHAPE_VEHICLES_MINIMAL),
+            ("SHAPE_VEHICLES_COMPREHENSIVE", SHAPE_VEHICLES_COMPREHENSIVE),
+        ] {
+            let fields: Vec<&str> = shape.split(',').collect();
+            for want in ["awardee_count", "holder_count", "order_winner_count"] {
+                assert!(
+                    fields.contains(&want),
+                    "{name} should carry {want:?}: {shape:?}"
+                );
+            }
+        }
+    }
+}
