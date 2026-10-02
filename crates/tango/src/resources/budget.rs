@@ -6,6 +6,8 @@
 //! breakdown, and request-vs-actual contract spend. The schema is wide
 //! (~63 fields) and shape-driven, so every method returns the untyped
 //! [`Record`] map like the other resource families.
+//! The `source_anomalies` list in each row decodes with
+//! [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record).
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -20,7 +22,8 @@ use std::sync::Arc;
 /// Options for [`Client::list_budget_accounts`] and [`Client::iterate_budget_accounts`].
 ///
 /// The API rejects an unknown filter name with a 400 rather than ignoring it.
-/// The exact, `__gte` and `__lte` range filters on the numeric lifecycle and ratio fields (e.g. `enacted_ba__gte`), and the `__in` multi-value variants, are reachable via the [`extra`](Self::extra) map.
+/// The exact, `__gte` and `__lte` range filters on the numeric lifecycle and ratio fields (e.g. `enacted_ba__gte`), and the `__in` multi-value variants other than [`account_category_in`](Self::account_category_in), are reachable via the [`extra`](Self::extra) map.
+/// There is no filter on `source_anomalies`; it is in the default shape, so every row already carries it.
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ListBudgetAccountsOptions {
@@ -77,10 +80,18 @@ pub struct ListBudgetAccountsOptions {
     /// On/off-budget flag filter (exact).
     #[builder(into)]
     pub on_off_budget: Option<String>,
+    /// Account category filter (exact): `budgetary` or `credit_financing` today.
+    /// Credit financing accounts have no enacted budget authority (`enacted_ba` is null) and are left out of organization budget totals.
+    #[builder(into)]
+    pub account_category: Option<String>,
+    /// Several account categories, comma-separated (sent as `account_category__in`).
+    #[builder(into)]
+    pub account_category_in: Option<String>,
     /// Free-text search filter.
     #[builder(into)]
     pub search: Option<String>,
     /// Server-side sort spec (prefix `-` for descending).
+    /// The default is latest fiscal year first, then largest `enacted_ba`, with null `enacted_ba` last and `id` breaking ties.
     #[builder(into)]
     pub ordering: Option<String>,
 
@@ -120,6 +131,12 @@ impl ListBudgetAccountsOptions {
         push_opt(&mut q, "subfunction_code", self.subfunction_code.as_deref());
         push_opt(&mut q, "bea_category", self.bea_category.as_deref());
         push_opt(&mut q, "on_off_budget", self.on_off_budget.as_deref());
+        push_opt(&mut q, "account_category", self.account_category.as_deref());
+        push_opt(
+            &mut q,
+            "account_category__in",
+            self.account_category_in.as_deref(),
+        );
         push_opt(&mut q, "search", self.search.as_deref());
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         for (k, v) in &self.extra {
@@ -284,6 +301,8 @@ mod tests {
             .subfunction_code("051")
             .bea_category("discretionary")
             .on_off_budget("on")
+            .account_category("credit_financing")
+            .account_category_in("budgetary,credit_financing")
             .search("operations")
             .ordering("-enacted_ba")
             .build();
@@ -307,6 +326,14 @@ mod tests {
         assert_eq!(get_q(&q, "subfunction_code").as_deref(), Some("051"));
         assert_eq!(get_q(&q, "bea_category").as_deref(), Some("discretionary"));
         assert_eq!(get_q(&q, "on_off_budget").as_deref(), Some("on"));
+        assert_eq!(
+            get_q(&q, "account_category").as_deref(),
+            Some("credit_financing")
+        );
+        assert_eq!(
+            get_q(&q, "account_category__in").as_deref(),
+            Some("budgetary,credit_financing")
+        );
         assert_eq!(get_q(&q, "search").as_deref(), Some("operations"));
         assert_eq!(get_q(&q, "ordering").as_deref(), Some("-enacted_ba"));
     }
@@ -325,6 +352,13 @@ mod tests {
             get_q(&q, "shape").as_deref(),
             Some(crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL)
         );
+    }
+
+    #[test]
+    fn minimal_shape_carries_category_and_anomalies() {
+        let fields: Vec<&str> = crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL.split(',').collect();
+        assert!(fields.contains(&"account_category"));
+        assert!(fields.contains(&"source_anomalies"));
     }
 
     #[test]
