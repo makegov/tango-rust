@@ -7,11 +7,12 @@
 //! (~63 fields) and shape-driven, so every method returns the untyped
 //! [`Record`] map like the other resource families.
 //! The `source_anomalies` list in each row decodes with
-//! [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record).
+//! [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record),
+//! and [`budget_data_through_period`](crate::models::budget_data_through_period) reads `data_through_period`.
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::{apply_pagination, push_opt, ListOptions};
+use crate::internal::{apply_pagination, push_opt, push_opt_bool, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
 use crate::resources::agencies::urlencoding;
 use crate::Record;
@@ -62,6 +63,17 @@ pub struct ListBudgetAccountsOptions {
     /// Upper bound for `fiscal_year` (inclusive).
     #[builder(into)]
     pub fiscal_year_lte: Option<String>,
+    /// `data_through_period` filter (exact): the File A fiscal period (1-12) the account-year's figures run through.
+    #[builder(into)]
+    pub data_through_period: Option<String>,
+    /// Lower bound for `data_through_period` (inclusive).
+    #[builder(into)]
+    pub data_through_period_gte: Option<String>,
+    /// Upper bound for `data_through_period` (inclusive).
+    #[builder(into)]
+    pub data_through_period_lte: Option<String>,
+    /// `Some(true)` keeps only rows with no File A data (null `data_through_period`), `Some(false)` only rows with it (sent as `data_through_period__isnull`).
+    pub data_through_period_isnull: Option<bool>,
     /// Agency code filter (exact).
     #[builder(into)]
     pub agency_code: Option<String>,
@@ -121,6 +133,26 @@ impl ListBudgetAccountsOptions {
         push_opt(&mut q, "fiscal_year", self.fiscal_year.as_deref());
         push_opt(&mut q, "fiscal_year__gte", self.fiscal_year_gte.as_deref());
         push_opt(&mut q, "fiscal_year__lte", self.fiscal_year_lte.as_deref());
+        push_opt(
+            &mut q,
+            "data_through_period",
+            self.data_through_period.as_deref(),
+        );
+        push_opt(
+            &mut q,
+            "data_through_period__gte",
+            self.data_through_period_gte.as_deref(),
+        );
+        push_opt(
+            &mut q,
+            "data_through_period__lte",
+            self.data_through_period_lte.as_deref(),
+        );
+        push_opt_bool(
+            &mut q,
+            "data_through_period__isnull",
+            self.data_through_period_isnull,
+        );
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
         push_opt(&mut q, "bureau_name", self.bureau_name.as_deref());
         push_opt(
@@ -295,6 +327,10 @@ mod tests {
             .fiscal_year("2024")
             .fiscal_year_gte("2020")
             .fiscal_year_lte("2025")
+            .data_through_period("9")
+            .data_through_period_gte("3")
+            .data_through_period_lte("11")
+            .data_through_period_isnull(false)
             .agency_code("9700")
             .bureau_name("Operation and Maintenance")
             .account_title("readiness")
@@ -314,6 +350,13 @@ mod tests {
         assert_eq!(get_q(&q, "fiscal_year").as_deref(), Some("2024"));
         assert_eq!(get_q(&q, "fiscal_year__gte").as_deref(), Some("2020"));
         assert_eq!(get_q(&q, "fiscal_year__lte").as_deref(), Some("2025"));
+        assert_eq!(get_q(&q, "data_through_period").as_deref(), Some("9"));
+        assert_eq!(get_q(&q, "data_through_period__gte").as_deref(), Some("3"));
+        assert_eq!(get_q(&q, "data_through_period__lte").as_deref(), Some("11"));
+        assert_eq!(
+            get_q(&q, "data_through_period__isnull").as_deref(),
+            Some("false")
+        );
         assert_eq!(get_q(&q, "agency_code").as_deref(), Some("9700"));
         assert_eq!(
             get_q(&q, "bureau_name").as_deref(),
@@ -359,6 +402,13 @@ mod tests {
         let fields: Vec<&str> = crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL.split(',').collect();
         assert!(fields.contains(&"account_category"));
         assert!(fields.contains(&"source_anomalies"));
+    }
+
+    #[test]
+    fn minimal_shape_puts_data_through_period_after_fiscal_year() {
+        let fields: Vec<&str> = crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL.split(',').collect();
+        let fy = fields.iter().position(|f| *f == "fiscal_year").unwrap();
+        assert_eq!(fields[fy + 1], "data_through_period");
     }
 
     #[test]

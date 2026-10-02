@@ -107,7 +107,7 @@ All 34 constants live in `shapes.rs` and are re-exported at the crate root. They
 | `SHAPE_SLED_REVISIONS_MINIMAL` | `list_sled_opportunity_revisions` | observed_at, sequence, kind, changed_fields, source_declared |
 | `SHAPE_SLED_FORECASTS_MINIMAL` | `list_sled_forecasts` | forecast identity, agency, advertisement estimate, value band |
 | `SHAPE_SLED_FORECASTS_COMPREHENSIVE` | `get_sled_forecast` | the above + description, organization, contact |
-| `SHAPE_BUDGET_ACCOUNTS_MINIMAL` | `list_budget_accounts` | the API's default: identity (including `account_category`) + lifecycle dollars + attribution status + capped ratios + `source_anomalies` |
+| `SHAPE_BUDGET_ACCOUNTS_MINIMAL` | `list_budget_accounts` | the API's default: identity (including `data_through_period` and `account_category`) + lifecycle dollars + attribution status + capped ratios + `source_anomalies` |
 | `SHAPE_DIBBS_RFQS_MINIMAL` | `list_dibbs_rfqs` | uuid, solicitation, NSN, part number, nomenclature, quantity, dates, is_open |
 | `SHAPE_DIBBS_RFPS_MINIMAL` | `list_dibbs_rfps` | uuid, solicitation, NSN, part number, nomenclature, dates, is_open |
 | `SHAPE_DIBBS_AWARDS_MINIMAL` | `list_dibbs_awards` | uuid, award number, solicitation, NSN, part, awardee CAGE, award date, order total |

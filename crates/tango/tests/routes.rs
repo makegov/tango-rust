@@ -272,6 +272,41 @@ async fn list_budget_accounts_filters_by_category_and_decodes_anomalies() {
 }
 
 #[tokio::test]
+async fn list_budget_accounts_filters_and_reads_data_through_period() {
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/budget/accounts/")
+                .query_param("data_through_period__gte", "3")
+                .query_param("data_through_period__isnull", "false");
+            then.status(200).json_body(page(json!([
+                {"federal_account_symbol": "097-0100", "fiscal_year": 2026, "data_through_period": 9},
+                {"federal_account_symbol": "097-4000", "fiscal_year": 2026, "data_through_period": null}
+            ])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_budget_accounts(
+            ListBudgetAccountsOptions::builder()
+                .data_through_period_gte("3")
+                .data_through_period_isnull(false)
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    assert_eq!(
+        tango::models::budget_data_through_period(&p.results[0]),
+        Some(9)
+    );
+    assert_eq!(
+        tango::models::budget_data_through_period(&p.results[1]),
+        None
+    );
+}
+
+#[tokio::test]
 async fn budget_sub_routes_send_their_own_filters() {
     let server = MockServer::start_async().await;
     let quarters = server
