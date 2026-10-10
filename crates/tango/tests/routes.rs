@@ -438,6 +438,45 @@ async fn ebuy_routes() {
 }
 
 #[tokio::test]
+async fn ebuy_request_named_extracted_text_leaf_passes_through() {
+    let shape = "rfq_id,attachments(doc_seq_num,doc_name,extracted_text)";
+    let server = MockServer::start_async().await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/ebuy/requests/RFQ1835158/")
+                .query_param("shape", shape);
+            then.status(200).json_body(json!({
+                "rfq_id": "RFQ1835158",
+                "attachments": [
+                    {"doc_seq_num": 1, "doc_name": "sow.pdf", "extracted_text": "Statement of work"},
+                    {"doc_seq_num": 2, "doc_name": "portal link"}
+                ]
+            }));
+        })
+        .await;
+    let rec = make_client(&server)
+        .get_ebuy_request(
+            "RFQ1835158",
+            Some(GetEbuyRequestOptions::builder().shape(shape).build()),
+        )
+        .await
+        .expect("get");
+    get.assert_async().await;
+    let attachments = rec
+        .get("attachments")
+        .and_then(serde_json::Value::as_array)
+        .expect("attachments");
+    assert_eq!(
+        attachments[0]
+            .get("extracted_text")
+            .and_then(serde_json::Value::as_str),
+        Some("Statement of work")
+    );
+    assert!(attachments[1].get("extracted_text").is_none());
+}
+
+#[tokio::test]
 async fn ebuy_attachment_url_returns_redirect_target_without_following_it() {
     let server = MockServer::start_async().await;
     let target = server.url("/presigned/doc.pdf?X-Amz-Signature=abc");

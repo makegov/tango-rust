@@ -6,6 +6,10 @@
 //!
 //! `status` is frozen at the state it was last seen in. Only currently-active requests are published, so a request that closes stops appearing rather than getting a final row: `Open` means "open the last time it was seen", and `last_seen` is the staleness signal.
 //! The contract number a request was posted under is never returned in any payload, and `buyer_agency_code` and some other buyer and contact fields are sparse on older requests.
+//!
+//! An attachment's document text is the `attachments(extracted_text)` shape leaf, from Tango API 5.9.1.
+//! It must be named: neither the default shape nor `attachments(*)` carries it.
+//! Its key is absent rather than null on an attachment with no text, which is a link, an empty scan, or a document not yet extracted.
 
 use crate::client::Client;
 use crate::error::{Error, Result};
@@ -33,7 +37,7 @@ pub struct ListEbuyRequestsOptions {
     /// Keyset cursor.
     #[builder(into)]
     pub cursor: Option<String>,
-    /// Comma-separated field selector. Use [`SHAPE_EBUY_REQUESTS_MINIMAL`](crate::SHAPE_EBUY_REQUESTS_MINIMAL) or roll your own; `organization(*)` and `attachments(*)` are the expands.
+    /// Comma-separated field selector. Use [`SHAPE_EBUY_REQUESTS_MINIMAL`](crate::SHAPE_EBUY_REQUESTS_MINIMAL) or roll your own; `organization(*)` and `attachments(*)` are the expands. `attachments(*)` does not carry a document's text: name `attachments(extracted_text)` for that.
     #[builder(into)]
     pub shape: Option<String>,
     /// Collapse nested objects into dot-separated keys.
@@ -144,7 +148,7 @@ impl ListEbuyRequestsOptions {
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct GetEbuyRequestOptions {
-    /// Shape selector. When empty, the server returns every field plus `organization(*)` and `attachments(*)`.
+    /// Shape selector. When empty, the server returns every field plus `organization(*)` and `attachments(*)`. Neither that default nor `attachments(*)` carries a document's text: name `attachments(extracted_text)` for that.
     #[builder(into)]
     pub shape: Option<String>,
     /// Flatten nested objects into dot-separated keys.
@@ -183,6 +187,14 @@ impl Client {
     ///
     /// The default shape carries every field plus `organization(*)` and `attachments(*)`. An attachment with `is_link = true` is an outbound URL in `doc_path` with no stored document behind it.
     /// A request outside your scope returns [`Error::NotFound`], the same as an unknown id.
+    ///
+    /// Neither the default shape nor `attachments(*)` carries a document's text; name the `attachments(extracted_text)` leaf to read it (Tango API 5.9.1 and later):
+    ///
+    /// ```text
+    /// rfq_id,attachments(doc_seq_num,doc_name,extracted_text)
+    /// ```
+    ///
+    /// The `extracted_text` key is absent rather than null on an attachment with no text (a link, an empty scan, or a document not yet extracted), so read it with `get` instead of indexing.
     pub async fn get_ebuy_request(
         &self,
         rfq_id: &str,

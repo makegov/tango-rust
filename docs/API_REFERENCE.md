@@ -212,6 +212,8 @@ Options: `ListEbuyRequestsOptions` (`search`, `rfq_id`, `reference_number`, `req
 
 **`get_ebuy_attachment_url` does not follow the redirect.** The API answers with a redirect to a presigned URL valid for about five minutes; the method returns that URL, so fetch it promptly. It runs on a client with redirects disabled (override it with the builder's `no_redirect_http_client` if your proxy or TLS setup must apply). An attachment with `is_link = true` has no stored document: the call returns `Error::ExternalLink { url, .. }` carrying the link. A document not yet captured returns `Error::NotFound`.
 
+**The document text is `attachments(extracted_text)`** (API 5.9.1+). It must be **named** — neither the default shape nor `attachments(*)` carries it, and `SHAPE_EBUY_REQUESTS_MINIMAL` does not include it. Ask for it with a shape such as `rfq_id,attachments(doc_seq_num,doc_name,extracted_text)`. Its key is **absent rather than null** on an attachment with no text: a link, an empty scan, or a document not yet extracted.
+
 ### Exclusions (`exclusions.rs`)
 
 SAM.gov exclusions: debarments, suspensions and other ineligibility records.

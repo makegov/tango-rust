@@ -17,6 +17,8 @@ This project follows [Semantic Versioning](https://semver.org/).
 
   **`get_ebuy_attachment_url` returns the redirect target instead of following it**: the API redirects to a presigned URL valid for about five minutes, and following it would download the document and send your API key to the download host. The call runs on a client with redirects disabled, which the new `no_redirect_http_client` builder option overrides. An attachment that is an outbound link returns the new `Error::ExternalLink { url, .. }` variant (status 400, not retryable).
 
+- **`attachments(extracted_text)` — eBuy attachment text** (Tango API 5.9.1). This SDK returns `Record` and passes `shape` through unchanged, so the leaf needs no code change; it is documented on `get_ebuy_request`, in `docs/API_REFERENCE.md` and in `docs/SHAPES.md`. The leaf must be **named**: neither the default shape nor `attachments(*)` carries it, and `SHAPE_EBUY_REQUESTS_MINIMAL` does not include it. The **key is absent rather than null** on an attachment with no text (a link, an empty scan, or a document not yet extracted).
+
 #### Changed
 
 - The retry loop is shared between body-returning requests and the redirect-reading call, so `get_ebuy_attachment_url` retries 429, 5xx and transport failures exactly as every other method does.
