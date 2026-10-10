@@ -14,6 +14,7 @@
 
 pub mod agency;
 pub mod contract_appeal;
+pub mod ebuy;
 pub mod protest;
 pub mod resolve;
 pub mod validate;
@@ -21,6 +22,7 @@ pub mod webhook;
 
 pub use agency::AgencyRecord;
 pub use contract_appeal::ContractAppealRecord;
+pub use ebuy::EbuyAccess;
 pub use protest::ProtestRecord;
 pub use resolve::{ResolveCandidate, ResolveInput, ResolveResult, ResolveTargetType};
 pub use validate::{ValidateInput, ValidateInputType, ValidateResult};
