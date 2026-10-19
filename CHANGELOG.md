@@ -22,12 +22,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 - **Budget-account `source_anomalies` and `account_category`** (Tango API 5.7.0). `models::BudgetSourceAnomaly` (with `BudgetSourceAnomalySource` and `BudgetSourceAnomalyRow`) types each element of a row's `source_anomalies` list, and `BudgetSourceAnomaly::from_record` decodes it from a `list_budget_accounts` / `get_budget_account` record, returning an empty list when the field is `[]`, absent or null. Every field is optional and `code` is an open string (`contract_exceeds_obligations`, `assistance_exceeds_obligations`, `contract_without_obligations` today). `reported_value`, `served_value` and `transaction_obligated_amount` decode from a JSON number or a numeric string. There is no filter on anomalies.
 - **Budget-account `data_through_period`** (Tango API 5.8.0): the File A fiscal period (1–12) an account-year's figures run through, so the latest fiscal year is partial until it reaches 12; null when the row has no File A data. `models::budget_data_through_period` reads it from a record as `Option<u8>`, and `ListBudgetAccountsOptions` gains `data_through_period`, `data_through_period_gte`, `data_through_period_lte` (sent as `__gte` / `__lte`) and `data_through_period_isnull` (sent as `data_through_period__isnull`).
 - **`account_category` and `account_category_in` on `ListBudgetAccountsOptions`** (sent as `account_category` and `account_category__in`). Values are `budgetary` or `credit_financing` today; credit financing accounts have null `enacted_ba` and are left out of organization budget totals.
+- **Vehicle company counts** (Tango API 5.8.0): `SHAPE_VEHICLES_MINIMAL` and `SHAPE_VEHICLES_COMPREHENSIVE` now request `holder_count` (distinct companies holding one of the vehicle's IDVs) and `order_winner_count` (distinct companies that have won a task order under it), next to `awardee_count`.
 
 #### Changed
 
 - The retry loop is shared between body-returning requests and the redirect-reading call, so `get_ebuy_attachment_url` retries 429, 5xx and transport failures exactly as every other method does.
 - **`SHAPE_BUDGET_ACCOUNTS_MINIMAL` matches the API's default shape again.** It adds `data_through_period` (right after `fiscal_year`), `account_category` and `source_anomalies`, plus `attribution_status`, `attribution_confidence` and `contract_obligated_estimated`, which the API's default already carried.
 - **The API's default budget-account ordering now puts null `enacted_ba` last** within each fiscal year, with `id` breaking ties so pages are stable. No SDK change is needed; the `ordering` field documents it.
+
+#### Deprecated
+
+- **`awardee_count` on vehicles** is deprecated by the Tango API as an alias of `order_winner_count`, and is removed at the API's next major version. The vehicle shapes still request it so existing readers keep working; read `order_winner_count` instead.
 
 ## [0.2.0] — 2026-09-23
 
