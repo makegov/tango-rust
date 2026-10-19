@@ -786,3 +786,41 @@ async fn opportunity_award_fields_and_attachment_status_pass_through() {
         json!("unsupported")
     );
 }
+
+#[tokio::test]
+async fn contract_obligations_by_fiscal_year_decode_from_a_list_row() {
+    let shape = "key,obligations_by_fiscal_year(fiscal_year,obligated)";
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/contracts/")
+                .query_param("uei", "UEI1|UEI2")
+                .query_param("commercial_item_acquisition_procedures", "A|E")
+                .query_param("shape", shape);
+            then.status(200).json_body(page(json!([{
+                "key": "CONT_AWD_1",
+                "obligations_by_fiscal_year": [
+                    {"fiscal_year": 2025, "obligated": 1000.0},
+                    {"fiscal_year": 2026, "obligated": -50.25}
+                ]
+            }])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_contracts(
+            tango::ListContractsOptions::builder()
+                .recipient_uei("UEI1|UEI2")
+                .commercial_item_acquisition_procedures("A|E")
+                .shape(shape)
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    let years = tango::models::FiscalYearObligation::from_record(&p.results[0])
+        .expect("decode")
+        .expect("present");
+    assert_eq!(years[1].fiscal_year, Some(2026));
+    assert_eq!(years[1].obligated, Some(-50.25));
+}

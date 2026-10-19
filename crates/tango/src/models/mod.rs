@@ -13,6 +13,7 @@
 //! through `serde_json::to_value` will re-emit those extras.
 
 pub mod agency;
+pub mod awards;
 pub mod budget;
 pub mod contract_appeal;
 pub mod ebuy;
@@ -22,6 +23,7 @@ pub mod validate;
 pub mod webhook;
 
 pub use agency::AgencyRecord;
+pub use awards::FiscalYearObligation;
 pub use budget::{
     budget_data_through_period, BudgetSourceAnomaly, BudgetSourceAnomalyRow,
     BudgetSourceAnomalySource,

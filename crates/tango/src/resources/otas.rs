@@ -62,7 +62,7 @@ pub struct ListOTAsOptions {
     /// Recipient name filter.
     #[builder(into)]
     pub recipient: Option<String>,
-    /// Recipient UEI.
+    /// Recipient UEI. Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
 
@@ -254,7 +254,7 @@ pub struct ListOTIDVsOptions {
     /// Recipient name filter.
     #[builder(into)]
     pub recipient: Option<String>,
-    /// Recipient UEI.
+    /// Recipient UEI. Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
 
