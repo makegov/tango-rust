@@ -33,11 +33,19 @@ pub struct BudgetSourceAnomaly {
     pub action: Option<String>,
 
     /// The value the source data reported.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "number_or_numeric_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub reported_value: Option<f64>,
 
     /// The value the API serves for [`field`](Self::field).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "number_or_numeric_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub served_value: Option<f64>,
 
     /// Short description of the most likely cause.
@@ -70,6 +78,25 @@ pub fn budget_data_through_period(record: &Record) -> Option<u8> {
         .get("data_through_period")
         .and_then(Value::as_u64)
         .and_then(|n| u8::try_from(n).ok())
+}
+
+/// Decode an amount sent as a JSON number or as a numeric string, since the API passes these values through as the source data carries them.
+fn number_or_numeric_string<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    match Option::<Value>::deserialize(deserializer)? {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Number(n)) => Ok(n.as_f64()),
+        Some(Value::String(s)) => s
+            .trim()
+            .parse::<f64>()
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+        Some(other) => Err(serde::de::Error::custom(format!(
+            "expected a number or numeric string, got {other}"
+        ))),
+    }
 }
 
 impl BudgetSourceAnomaly {
@@ -128,7 +155,11 @@ pub struct BudgetSourceAnomalyRow {
     pub reporting_agency_id: Option<String>,
 
     /// Obligated amount the row reports.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "number_or_numeric_string",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub transaction_obligated_amount: Option<f64>,
 
     /// Which source file the row came from.
@@ -216,6 +247,24 @@ mod tests {
                 .expect("decode")
                 .is_empty());
         }
+    }
+
+    #[test]
+    fn amounts_sent_as_strings_decode() {
+        let r = record(json!({"source_anomalies": [{
+            "reported_value": "73470455401.80",
+            "served_value": null,
+            "source": {"rows": [{"transaction_obligated_amount": "-12.5"}]}
+        }]}));
+        let got = BudgetSourceAnomaly::from_record(&r).expect("decode");
+        assert_eq!(got[0].reported_value, Some(73_470_455_401.8));
+        assert_eq!(got[0].served_value, None);
+        let rows = got[0]
+            .source
+            .as_ref()
+            .and_then(|s| s.rows.as_ref())
+            .expect("rows");
+        assert_eq!(rows[0].transaction_obligated_amount, Some(-12.5));
     }
 
     #[test]
