@@ -169,6 +169,28 @@ async fn maps_429_to_rate_limit_with_retry_after() {
 }
 
 #[tokio::test]
+async fn rate_limit_type_read_from_a_daily_detail() {
+    let server = MockServer::start_async().await;
+    let _m = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/version/");
+            then.status(429).header("retry-after", "61080").json_body(serde_json::json!({
+                "detail": "Rate limit exceeded for daily. Please try again in 16 hours, 58 minutes.",
+                "wait_in_seconds": 61080
+            }));
+        })
+        .await;
+
+    let client = make_client(&server);
+    match client.get_version().await {
+        Err(Error::RateLimit { limit_type, .. }) => {
+            assert_eq!(limit_type.as_deref(), Some("daily"));
+        }
+        other => panic!("expected RateLimit, got {other:?}"),
+    }
+}
+
+#[tokio::test]
 async fn maps_500_to_api_error() {
     let server = MockServer::start_async().await;
     let _m = server

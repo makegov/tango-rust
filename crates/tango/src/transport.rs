@@ -326,12 +326,18 @@ fn decode_error(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> Error {
         },
         429 => {
             let retry_after = parse_retry_after(headers).as_secs();
+            let detail = parsed_value
+                .as_ref()
+                .and_then(|v| v.get("detail"))
+                .and_then(Value::as_str);
             Error::RateLimit {
                 retry_after: u32::try_from(retry_after).unwrap_or(u32::MAX),
                 limit_type: headers
                     .get(RATE_LIMIT_TYPE_HDR)
                     .and_then(|v| v.to_str().ok())
-                    .map(str::to_string),
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string)
+                    .or_else(|| detail.and_then(limit_type_from_detail).map(str::to_string)),
                 response,
             }
         }
@@ -342,6 +348,37 @@ fn decode_error(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> Error {
             response,
         },
     }
+}
+
+/// Which limit a 429 tripped, read from the API's detail: `"daily"`, `"burst"`, or `None` when the detail names neither.
+///
+/// The API names the rate in `Rate limit exceeded for daily. Please try again in 16 hours, 58 minutes.`, so only the name after `exceeded for` is read: the wait can say "minutes" on a daily lockout.
+fn limit_type_from_detail(detail: &str) -> Option<&'static str> {
+    const MARKER: &str = "exceeded for ";
+    let lower = detail.to_lowercase();
+    let is_name_char = |c: char| c.is_alphanumeric() || c == '_' || c == '-';
+    let name = lower.find(MARKER).and_then(|at| {
+        let rest = &lower[at + MARKER.len()..];
+        let end = rest.find(|c: char| !is_name_char(c)).unwrap_or(rest.len());
+        (end > 0).then(|| &rest[..end])
+    });
+    let text = name.unwrap_or(&lower);
+    if text.contains("daily") || contains_word(text, "day") {
+        Some("daily")
+    } else if text.contains("burst") || text.contains("minute") {
+        Some("burst")
+    } else {
+        None
+    }
+}
+
+fn contains_word(text: &str, word: &str) -> bool {
+    let is_word_char = |c: char| c.is_alphanumeric() || c == '_';
+    text.match_indices(word).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + word.len()..].chars().next();
+        !before.is_some_and(is_word_char) && !after.is_some_and(is_word_char)
+    })
 }
 
 /// The server's own explanation from an error body, e.g. why a 403 refused the request.
@@ -449,6 +486,82 @@ mod tests {
             extract_validation_message(Some(&body)),
             "invalid request parameters: must be present"
         );
+    }
+
+    #[test]
+    fn limit_type_reads_the_rate_name_not_the_wait() {
+        let cases = [
+            (
+                "Rate limit exceeded for daily. Please try again in 16 hours, 58 minutes.",
+                Some("daily"),
+            ),
+            (
+                "Rate limit exceeded for daily. Please try again in 1 minute.",
+                Some("daily"),
+            ),
+            (
+                "Rate limit exceeded for burst. Please try again in 45 seconds.",
+                Some("burst"),
+            ),
+            (
+                "Rate limit exceeded for burst. Please try again in 1 minute.",
+                Some("burst"),
+            ),
+            (
+                "Rate limit exceeded for premium_daily. Please try again in 3 hours.",
+                Some("daily"),
+            ),
+            (
+                "Rate limit exceeded for burst. Please try again in 1 day.",
+                Some("burst"),
+            ),
+            ("Too many requests.", None),
+            ("", None),
+        ];
+        for (detail, expected) in cases {
+            assert_eq!(limit_type_from_detail(detail), expected, "{detail}");
+        }
+    }
+
+    fn rate_limit_type(headers: &HeaderMap, body: &[u8]) -> Option<String> {
+        match decode_error(StatusCode::TOO_MANY_REQUESTS, headers, body) {
+            Error::RateLimit { limit_type, .. } => limit_type,
+            other => panic!("expected Error::RateLimit, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rate_limit_type_from_body_detail() {
+        let body = br#"{"detail": "Rate limit exceeded for daily. Please try again in 16 hours, 58 minutes.", "wait_in_seconds": 61080}"#;
+        assert_eq!(
+            rate_limit_type(&HeaderMap::new(), body).as_deref(),
+            Some("daily")
+        );
+    }
+
+    #[test]
+    fn rate_limit_type_none_without_a_recognisable_detail() {
+        let h = HeaderMap::new();
+        assert_eq!(
+            rate_limit_type(&h, br#"{"detail": "Too many requests."}"#),
+            None
+        );
+        assert_eq!(
+            rate_limit_type(&h, br#"{"detail": {"error": "daily"}}"#),
+            None
+        );
+        assert_eq!(rate_limit_type(&h, b"<html>daily burst</html>"), None);
+        assert_eq!(rate_limit_type(&h, b""), None);
+    }
+
+    #[test]
+    fn rate_limit_type_header_wins_over_detail() {
+        let body = br#"{"detail": "Rate limit exceeded for daily. Please try again in 2 hours."}"#;
+        let mut h = HeaderMap::new();
+        h.insert(RATE_LIMIT_TYPE_HDR, "burst".parse().unwrap());
+        assert_eq!(rate_limit_type(&h, body).as_deref(), Some("burst"));
+        h.insert(RATE_LIMIT_TYPE_HDR, "".parse().unwrap());
+        assert_eq!(rate_limit_type(&h, body).as_deref(), Some("daily"));
     }
 
     fn api_error(status: u16, body: &[u8]) -> (u16, String, Option<ErrorBody>, String) {
