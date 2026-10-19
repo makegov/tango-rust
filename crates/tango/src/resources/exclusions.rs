@@ -49,6 +49,9 @@ pub struct ListExclusionsOptions {
     /// Exclusion program (e.g. `Reciprocal`).
     #[builder(into)]
     pub exclusion_program: Option<String>,
+    /// The excluding agency as a Tango agency name, abbreviation, code or organization key (e.g. `DOD`). Matches by name, abbreviation, or code (CGAC, FPDS, Federal Hierarchy key or AAC) and includes every sub-agency and office beneath it; OR several with `|`. A token that does not resolve falls back to an exact match on `excluding_agency_code`.
+    #[builder(into)]
+    pub agency: Option<String>,
     /// Code of the agency that issued the exclusion.
     #[builder(into)]
     pub excluding_agency_code: Option<String>,
@@ -122,6 +125,7 @@ impl ListExclusionsOptions {
             "exclusion_program",
             self.exclusion_program.as_deref(),
         );
+        push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(
             &mut q,
             "excluding_agency_code",
@@ -394,5 +398,14 @@ mod tests {
         assert_eq!(get_q(&q, "shape").as_deref(), Some("a,b"));
         assert_eq!(get_q(&q, "flat").as_deref(), Some("true"));
         assert_eq!(get_q(&q, "flat_lists").as_deref(), Some("true"));
+    }
+
+    #[test]
+    fn list_exclusions_agency_filter_emits() {
+        let q = ListExclusionsOptions::builder()
+            .agency("DOD|HHS")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "agency").as_deref(), Some("DOD|HHS"));
     }
 }
