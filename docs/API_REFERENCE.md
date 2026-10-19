@@ -12,6 +12,7 @@ The canonical, always-up-to-date reference is the auto-generated rustdoc at **<h
 - Options builders are `#[derive(Builder)]` from `bon`. Construct with `.builder()...build()`.
 - "Shape-driven" endpoints (most lists, all entity/contract/IDV/vehicle/opportunity/protest details) accept `shape`, `flat`, and `flat_lists` parameters. See [`SHAPES.md`](SHAPES.md).
 - Method paths in the table below assume the resolved base URL (`https://tango.makegov.com` by default).
+- Every `Page<T>` carries `count_type` (`"exact"` or `"approximate"`, from that response's `X-Results-CountType` header; `None` when the endpoint does not send it) and `meta` (the response's `meta` object as sent). Past 1,000 matches the contract, IDV, opportunity and notice lists may report a query-planner estimate as `count`. On an agency-filtered list, each resolved entry of `meta["resolved_filters"][<filter name>]` says how its token matched in `matched_by` (`key`, `code`, `name`, `alias` or `fuzzy`; Tango API 5.9.0+), and an unresolved entry has none.
 
 ## Resources
 
@@ -36,6 +37,10 @@ Options: `ListAgenciesOptions`, `GetAgencyOptions`, `AgencyContractsOptions` (al
 | `list_contract_transactions(key, opts)` | `GET /api/contracts/{key}/transactions/` | `Page<Record>` |
 
 Options: `ListContractsOptions` (list), `ListOptions` (`get_contract`), `EntitySubresourceOptions` (sub-routes; `/transactions/` honours only pagination and `ordering`). SDK-friendly filter aliases (`naics_code`, `psc_code`, `recipient_name`, `recipient_uei`, `set_aside_type`, `keyword`) map onto canonical API names. When both are set, the SDK alias wins (mirrors Node/Python). `sort`+`order` combine into `ordering` with `-` prefix for descending.
+
+- **`uei` / `recipient_uei` accept several UEIs joined by `|`** and match awards to any of them, up to 500 (Tango API 5.11.0). The same holds for `uei` on the IDV, OTA and OT IDV lists.
+- **`commercial_item_acquisition_procedures`** (Tango API 5.10.0) filters by the FPDS code, case-insensitive: `A` (commercial products/services), `B` (products or services pursuant to FAR 12.102(f)), `C` (services pursuant to FAR 12.102(g)), `D` (commercial procedures not used) or `E` (DoD Section 803 Commercial Solutions Opening). OR several with `|`, e.g. `A|E`; an unknown or multi-character code matches nothing. It is on `ListContractsOptions` and `ListIDVsOptions` only: the API does not offer it on OTAs or OT IDVs.
+- **`obligations_by_fiscal_year(fiscal_year,obligated)`** (Tango API 5.11.0) is a shape expand on contracts, IDVs, OTAs and OT IDVs, list and detail. It sums the award's transactions per federal fiscal year (October 1 starts the next one), oldest first, each rounded to cents; a de-obligation nets against its own year, so a year can be zero or negative. It is returned only when named, and it is always null on IDVs and OT IDVs, whose transactions report a running lifetime total. Decode it with `models::FiscalYearObligation::from_record(&row)`, which returns `Ok(None)` when the field is null or not in the shape.
 
 ### IDVs (`idvs.rs`, `idv_subresources.rs`)
 
@@ -76,7 +81,10 @@ Options: `ListEntitiesOptions`, `GetEntityOptions`, `EntitySubresourceOptions` (
 | `list_vehicle_awardees(uuid, opts)` / `iterate_*` | `GET /api/vehicles/{uuid}/awardees/` | `Page<Record>` / `PageStream<Record>` |
 | `list_vehicle_orders(uuid, opts)` / `iterate_*` | `GET /api/vehicles/{uuid}/orders/` | `Page<Record>` / `PageStream<Record>` |
 
-Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions`, `ListVehicleOrdersOptions`.
+Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions` (adds `search`), `ListVehicleOrdersOptions` (adds `ordering` over `award_date`, the default, `obligated` and `total_contract_value`).
+
+- The default vehicle shapes request `holder_count` (distinct companies holding one of the vehicle's IDVs) and `order_winner_count` (distinct companies that have won a task order under it). `awardee_count` is a deprecated alias of `order_winner_count`.
+- The embedded solicitation accepts the opportunity attachment counts: `opportunity(meta(files_count,links_count))`.
 
 ### Opportunities / Notices / Forecasts / Grants (`opportunities.rs`)
 
@@ -92,6 +100,14 @@ Options: `ListVehiclesOptions`, `GetVehicleOptions`, `ListVehicleAwardeesOptions
 | `get_grant(grant_id, opts)` | `GET /api/grants/{grant_id}/` | `Record` |
 
 Options: `ListOpportunitiesOptions`, `ListNoticesOptions`, `ListForecastsOptions`, `ListGrantsOptions`. The singleton `get_*` methods take `Option<ListOptions>`. `ListGrantsOptions` exposes a typed `grant_id` filter; `ListNoticesOptions` adds `notice_id`, `department` and `office`; `ListOpportunitiesOptions` adds `opportunity_id`; `ListForecastsOptions` adds `id`.
+
+`ListOpportunitiesOptions` also takes `awarded` (`Option<bool>`) and `awardee_uei` (case-insensitive, `|` for several), Tango API 5.5.0. Both search every opportunity rather than only active ones, so set `active` too to narrow to open opportunities.
+
+**Award fields** (Tango API 5.5.0) are not in the default shape, so name them: `awarded`, `award_date`, `award_amount`, `awardee`, `awardee_uei`, `award_count`, `solicitation_opportunity_id` and `awards(opportunity_id,notice_id,award_number,award_date,award_amount,awardee,awardee_uei)`. `award_date`, `award_amount`, `awardee` and `awardee_uei` are filled only where SAM.gov posted an award notice, and `award_amount` is the text SAM.gov published, not a number. When an award posted as its own opportunity references its solicitation, its `solicitation_opportunity_id` points back, and the solicitation's `awards(...)` lists up to ten of the most recent linked awards (`award_count` is the full count). Notices accept `award_date`, `award_amount`, `awardee` and `awardee_uei`.
+
+**Attachment counts** (Tango API 5.9.0): an attachment's `type` is `file` (a document attached to the notice; only files have extracted text) or `link` (a URL the notice lists). Opportunities carry `meta(attachments_count,files_count,links_count)` and notices `attachment_count`, `file_count` and `link_count`. The total still counts every attachment, so files plus links need not equal it, and the file and link counts are null until the record has been counted: **treat null as unknown, not zero**. No default shape names them.
+
+**`attachments(extraction_status)`** (Tango API 5.11.0) reports `pending`, `extracting`, `completed`, `failed` or `unsupported` for each attachment on an opportunity or notice, which says why `extracted_text` is missing. It is available on every plan and returned only when named: `attachments(*)` does not carry it.
 
 **There is no attachment-search method.** The API retired `/api/opportunities/attachment-search/` (it returns 404 for every query). `list_opportunities` with `search` matches attachment text and returns a `snippet` for the hit.
 
@@ -136,6 +152,7 @@ Options: `ListBudgetAccountsOptions` (list), `ListOptions` (`get_budget_account`
 - **`{id}` is the row's numeric `id`**, not the federal account symbol.
 - **`quarters` covers FY2021 onward**; an earlier account-year returns an empty page.
 - **`recipients` is contract flows only.** Each row carries the resolved `funding_office` and `recipient` plus a capped `contracts` list; a row that hits the cap sets `contracts_truncated`.
+- **`agency`** (Tango API 5.3.0) takes a Tango agency name, abbreviation, code or organization key (e.g. `EPA`) and matches the account's resolved organization, including every sub-agency beneath it; `|` for several. A token that does not resolve falls back to an exact `agency_code` match. The `organization(...)` expand (`agency_code`, `agency_name`, `department_code`, `department_name`, `office_code`, `office_name`, `organization_id`) is accepted in shapes, as is `organization_id`; the default shape is unchanged.
 - The `quarters` and `recipients` envelopes also carry `federal_account_symbol` and `fiscal_year`, which `Page` does not surface.
 
 ### GSA eLibrary (`gsa.rs`)
@@ -217,6 +234,23 @@ Options: `ListEbuyRequestsOptions` (`search`, `rfq_id`, `reference_number`, `req
 
 **The document text is `attachments(extracted_text)`** (API 5.9.1+). It must be **named** — neither the default shape nor `attachments(*)` carries it, and `SHAPE_EBUY_REQUESTS_MINIMAL` does not include it. Ask for it with a shape such as `rfq_id,attachments(doc_seq_num,doc_name,extracted_text)`. Its key is **absent rather than null** on an attachment with no text: a link, an empty scan, or a document not yet extracted.
 
+### Federal Register (`federal_register.rs`)
+
+Rules, proposed rules, notices and presidential documents published in the Federal Register since 1994 (Tango API 5.3.0).
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_federal_register_documents(opts)` / `iterate_federal_register_documents(opts)` | `GET /api/federal_register/` | `Page<Record>` / `PageStream<Record>` |
+| `get_federal_register_document(uuid, opts)` | `GET /api/federal_register/{uuid}/` | `Record` |
+
+Options: `ListFederalRegisterDocumentsOptions` (`search`, `document_number`, `r#type`, `agency`, `fr_agency`, `publication_date_after` / `_before`, `effective_on_after` / `_before`, `comments_close_on_after` / `_before`, `comments_open`, `cfr_title`, `cfr_part`, `significant`, `rin`, `executive_order_number`, and `ordering` over `publication_date`, `effective_on`, `comments_close_on`, `document_number` and `rank`), `GetFederalRegisterDocumentOptions`. Shapes: `SHAPE_FEDERAL_REGISTER_MINIMAL` and `SHAPE_FEDERAL_REGISTER_COMPREHENSIVE`, which mirror the API's list and detail defaults.
+
+- **The detail route takes the `uuid`, not the `document_number`.** The Federal Register reused some document numbers before 2016, so a number is not unique on its own; look one up with `document_number` on the list, which matches every document carrying it.
+- **`full_text` is detail-only and must be named.** It can run to several MB, so neither default shape includes it.
+- `agency` is a Tango organization and matches a document when any agency it lists falls within it (a department includes its sub-agencies); `fr_agency` is the Federal Register's own agency slug, e.g. `environmental-protection-agency`.
+- `comments_open = Some(true)` keeps documents whose comment period closes today or later and `Some(false)` those already closed; a document with no comment deadline matches neither. `cfr_part` requires `cfr_title`, and both must match the same CFR reference. `ordering = "rank"` requires a non-empty `search`.
+- Documents published before 2008 are mostly typed `Uncategorized Document`.
+
 ### Exclusions (`exclusions.rs`)
 
 SAM.gov exclusions: debarments, suspensions and other ineligibility records.
@@ -231,6 +265,7 @@ Options: `ListExclusionsOptions`, `GetExclusionOptions`. Shape: `SHAPE_EXCLUSION
 - **Whether an exclusion is in force is derived at query time**: not delisted, already activated, not yet terminated. Filter with `active` rather than trusting a stored flag.
 - **`delisted` is not expiry.** It means SAM lifted or withdrew the record; a natural expiration leaves the record listed.
 - Most exclusions are individuals and carry no UEI. `entity_uei` is set only when the record's UEI matches a registered entity.
+- **`agency`** (Tango API 5.3.0) scopes by the excluding agency: a Tango agency name, abbreviation, code or organization key, including every component of it; `|` for several. A token that does not resolve falls back to an exact `excluding_agency_code` match. The `organization(...)` expand (`agency_code`, `agency_name`, `department_code`, `department_name`, `office_code`, `office_name`, `organization_id`) is accepted in shapes, as is `organization_id`.
 
 ### SBIR / STTR (`sbir.rs`)
 
@@ -246,7 +281,9 @@ SBIR/STTR topics and DoD DSIP solicitation cycles.
 Options: `ListSbirTopicsOptions`, `ListSbirSolicitationsOptions`, `GetSbirOptions`. Shapes: `SHAPE_SBIR_TOPICS_MINIMAL`, `SHAPE_SBIR_SOLICITATIONS_MINIMAL`.
 
 - **`activity` is open/closed, derived at query time** from the close or end date. A topic with no close date and no parent solicitation to inherit one from is `unknown`.
-- The topic `agency` filter is a partial, case-insensitive match on the raw agency text, not organization-resolved, so variant spellings do not normalize.
+- The topic `agency` filter is organization-resolved and rolls up the hierarchy (`HHS` includes NIH topics); a token that does not resolve falls back to a partial match on the raw agency text.
+- `ListSbirTopicsOptions::cycle_name` filters topics by their exact DoD DSIP cycle (e.g. `DOD_SBIR_2026_P1_CBZ`, Tango API 5.3.1); only topics fed from DSIP carry one. `cycle_name` is also a topic field.
+- The `organization(...)` expand (`agency_code`, `agency_name`, `department_code`, `department_name`, `office_code`, `office_name`, `organization_id`) is accepted in shapes on topics and solicitations.
 
 ### State & Local — SLED (`sled.rs`) — **Beta**
 
@@ -288,7 +325,9 @@ Forecasts carry **no liveness at all**: no deadline to have passed, so no `statu
 | `list_itdashboard(opts)` / `iterate_itdashboard(opts)` | `GET /api/itdashboard/` | `Page<Record>` / `PageStream<Record>` |
 | `get_itdashboard(uii, opts)` | `GET /api/itdashboard/{uii}/` | `Record` |
 
-Options: `ListItdashboardOptions`, `GetItdashboardOptions`. `previous_uii` finds the investment(s) that superseded a retired UII. Some filters are tier-gated by the server (free vs. pro vs. business+); see the rustdoc on the options struct.
+Options: `ListItdashboardOptions`, `GetItdashboardOptions`. `previous_uii` finds the investment(s) that superseded a retired UII. `agency` (Tango API 5.3.0) matches the investment's resolved organization, including every sub-agency and office beneath it, falling back to a partial `agency_name` match.
+
+Some filters are tier-gated by the server: `search`, `agency_name`, `agency` and `previous_uii` are available at every plan; `agency_code`, `type_of_investment` and the `updated_time` bounds need Pro; `cio_rating`, `cio_rating_max` and `performance_risk` need Business or above. A gated filter below its plan returns a 403.
 
 ### LCATs (`lcats.rs`)
 
@@ -313,7 +352,7 @@ Options: `ListItdashboardOptions`, `GetItdashboardOptions`. `previous_uii` finds
 
 Paths: `/api/organizations/`, `/api/naics/`, `/api/psc/`, `/api/mas_sins/`, `/api/assistance_listings/`, `/api/business_types/`, `/api/offices/`, `/api/departments/`. (The underscore/hyphen split is the server's; the SDK matches it.)
 
-Options: `ListOrganizationsOptions`, `ListNaicsOptions`, `ListPscOptions`, `ListMasSinsOptions`, `ListAssistanceListingsOptions`, `ListBusinessTypesOptions`, `ListOfficesOptions`, `ListDepartmentsOptions`.
+Options: `ListOrganizationsOptions`, `ListNaicsOptions`, `ListPscOptions` (`has_awards = Some(true)` keeps only codes with contract award history), `ListMasSinsOptions`, `ListAssistanceListingsOptions`, `ListBusinessTypesOptions`, `ListOfficesOptions`, `ListDepartmentsOptions`.
 
 A department's `code` is an integer (`97` for DoD), returned as a JSON number; `get_department` takes it as a string (`"97"`). An agency's own `code` is a string (`"9700"`), and its nested `department.code` is the department's integer.
 

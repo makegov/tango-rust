@@ -633,3 +633,194 @@ async fn ebuy_attachment_url_maps_uncaptured_document_to_not_found() {
         .unwrap_err();
     assert!(matches!(err, Error::NotFound { .. }), "{err:?}");
 }
+
+#[tokio::test]
+async fn list_pages_carry_their_own_count_type_and_meta() {
+    let server = MockServer::start_async().await;
+    let contracts = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/contracts/");
+            then.status(200)
+                .header("X-Results-CountType", "approximate")
+                .json_body(json!({
+                    "count": 125_000,
+                    "next": null,
+                    "previous": null,
+                    "results": [{"key": "K1"}],
+                    "meta": {"resolved_filters": {"awarding_agency": [
+                        {"token": "DOD", "matched_by": "alias"},
+                        {"token": "nope"}
+                    ]}}
+                }));
+        })
+        .await;
+    let naics = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/naics/");
+            then.status(200)
+                .header("X-Results-CountType", "exact")
+                .json_body(page(json!([{"code": "541512"}])));
+        })
+        .await;
+    let c = make_client(&server);
+    let (p_contracts, p_naics) = tokio::join!(
+        c.list_contracts(tango::ListContractsOptions::builder().build()),
+        c.list_naics(tango::ListNaicsOptions::builder().build()),
+    );
+    let p_contracts = p_contracts.expect("contracts");
+    let p_naics = p_naics.expect("naics");
+    contracts.assert_async().await;
+    naics.assert_async().await;
+    assert_eq!(p_contracts.count_type.as_deref(), Some("approximate"));
+    assert_eq!(p_naics.count_type.as_deref(), Some("exact"));
+    let resolved = &p_contracts.meta.as_ref().expect("meta")["resolved_filters"]["awarding_agency"];
+    assert_eq!(resolved[0]["matched_by"], json!("alias"));
+    assert!(resolved[1].get("matched_by").is_none());
+    assert!(p_naics.meta.is_none());
+}
+
+#[tokio::test]
+async fn federal_register_routes() {
+    let server = MockServer::start_async().await;
+    let list = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/federal_register/")
+                .query_param("document_number", "2016-31922")
+                .query_param("type", "Rule")
+                .query_param("comments_open", "false");
+            then.status(200).json_body(page(json!([{
+                "uuid": "0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a",
+                "document_number": "2016-31922"
+            }])));
+        })
+        .await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/federal_register/0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a/")
+                .query_param("shape", "uuid,title,full_text");
+            then.status(200).json_body(json!({
+                "uuid": "0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a",
+                "title": "Air Plan Approval",
+                "full_text": "ENVIRONMENTAL PROTECTION AGENCY ..."
+            }));
+        })
+        .await;
+    let c = make_client(&server);
+    let p = c
+        .list_federal_register_documents(
+            tango::ListFederalRegisterDocumentsOptions::builder()
+                .document_number("2016-31922")
+                .r#type("Rule")
+                .comments_open(false)
+                .build(),
+        )
+        .await
+        .expect("list");
+    let uuid = p.results[0]
+        .get("uuid")
+        .and_then(serde_json::Value::as_str)
+        .expect("uuid")
+        .to_string();
+    let doc = c
+        .get_federal_register_document(
+            &uuid,
+            Some(
+                tango::GetFederalRegisterDocumentOptions::builder()
+                    .shape("uuid,title,full_text")
+                    .build(),
+            ),
+        )
+        .await
+        .expect("get");
+    list.assert_async().await;
+    get.assert_async().await;
+    assert_eq!(
+        doc.get("title").and_then(serde_json::Value::as_str),
+        Some("Air Plan Approval")
+    );
+}
+
+#[tokio::test]
+async fn opportunity_award_fields_and_attachment_status_pass_through() {
+    let shape = "opportunity_id,awarded,award_count,awards(notice_id,awardee_uei),meta(files_count,links_count),attachments(name,extraction_status)";
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/opportunities/")
+                .query_param("awarded", "true")
+                .query_param("awardee_uei", "ABCDEF123456")
+                .query_param("shape", shape);
+            then.status(200).json_body(page(json!([{
+                "opportunity_id": "o-1",
+                "awarded": true,
+                "award_count": 12,
+                "awards": [{"notice_id": "n-9", "awardee_uei": "ABCDEF123456"}],
+                "meta": {"files_count": 2, "links_count": null},
+                "attachments": [
+                    {"name": "sow.pdf", "extraction_status": "completed"},
+                    {"name": "scan.tif", "extraction_status": "unsupported"}
+                ]
+            }])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_opportunities(
+            tango::ListOpportunitiesOptions::builder()
+                .awarded(true)
+                .awardee_uei("ABCDEF123456")
+                .shape(shape)
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    let row = &p.results[0];
+    assert_eq!(row["awards"].as_array().map(Vec::len), Some(1));
+    assert_eq!(row["meta"]["files_count"], json!(2));
+    assert!(row["meta"]["links_count"].is_null());
+    assert_eq!(
+        row["attachments"][1]["extraction_status"],
+        json!("unsupported")
+    );
+}
+
+#[tokio::test]
+async fn contract_obligations_by_fiscal_year_decode_from_a_list_row() {
+    let shape = "key,obligations_by_fiscal_year(fiscal_year,obligated)";
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/contracts/")
+                .query_param("uei", "UEI1|UEI2")
+                .query_param("commercial_item_acquisition_procedures", "A|E")
+                .query_param("shape", shape);
+            then.status(200).json_body(page(json!([{
+                "key": "CONT_AWD_1",
+                "obligations_by_fiscal_year": [
+                    {"fiscal_year": 2025, "obligated": 1000.0},
+                    {"fiscal_year": 2026, "obligated": -50.25}
+                ]
+            }])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_contracts(
+            tango::ListContractsOptions::builder()
+                .recipient_uei("UEI1|UEI2")
+                .commercial_item_acquisition_procedures("A|E")
+                .shape(shape)
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    let years = tango::models::FiscalYearObligation::from_record(&p.results[0])
+        .expect("decode")
+        .expect("present");
+    assert_eq!(years[1].fiscal_year, Some(2026));
+    assert_eq!(years[1].obligated, Some(-50.25));
+}

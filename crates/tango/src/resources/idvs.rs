@@ -109,9 +109,12 @@ pub struct ListIDVsOptions {
     /// Solicitation identifier filter.
     #[builder(into)]
     pub solicitation_identifier: Option<String>,
-    /// Recipient UEI filter.
+    /// Recipient UEI filter. Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
+    /// FPDS commercial item acquisition procedures code (Tango API 5.10.0), case-insensitive: `A` (commercial products/services), `B` (products or services pursuant to FAR 12.102(f)), `C` (services pursuant to FAR 12.102(g)), `D` (commercial procedures not used) or `E` (DoD Section 803 Commercial Solutions Opening). OR several with `|`, e.g. `A|E`; an unknown or multi-character code matches nothing. The API does not offer it on OTAs or OT IDVs.
+    #[builder(into)]
+    pub commercial_item_acquisition_procedures: Option<String>,
 
     /// Filter by Tango award key (the detail-endpoint identifier). Supports multi-value OR via `|`.
     #[builder(into)]
@@ -180,6 +183,11 @@ impl ListIDVsOptions {
             self.solicitation_identifier.as_deref(),
         );
         push_opt(&mut q, "uei", self.uei.as_deref());
+        push_opt(
+            &mut q,
+            "commercial_item_acquisition_procedures",
+            self.commercial_item_acquisition_procedures.as_deref(),
+        );
 
         for (k, v) in &self.extra {
             if !v.is_empty() {
@@ -224,8 +232,7 @@ impl Client {
     /// `GET /api/idvs/` — one page of Indefinite Delivery Vehicle records.
     pub async fn list_idvs(&self, opts: ListIDVsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/idvs/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/idvs/", &q).await
     }
 
     /// `GET /api/idvs/{key}/` — fetch a single IDV by key.
@@ -358,5 +365,17 @@ mod tests {
     fn list_idvs_key_filter_emits() {
         let q = ListIDVsOptions::builder().key("K1").build().to_query();
         assert_eq!(get_q(&q, "key").as_deref(), Some("K1"));
+    }
+
+    #[test]
+    fn list_idvs_commercial_item_acquisition_procedures_emits() {
+        let q = ListIDVsOptions::builder()
+            .commercial_item_acquisition_procedures("A|E")
+            .build()
+            .to_query();
+        assert_eq!(
+            get_q(&q, "commercial_item_acquisition_procedures").as_deref(),
+            Some("A|E")
+        );
     }
 }

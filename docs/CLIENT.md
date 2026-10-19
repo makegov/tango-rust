@@ -179,7 +179,7 @@ Helpers:
 
 The `response` payload on each variant exposes:
 
-- `response.message` — the SDK's best guess at a human-readable line extracted from the body (envelope keys `detail` / `message` / `error` first, then sorted-key iteration over the remaining keys).
+- `response.message` — the server's own explanation, extracted from the body: the first non-empty string among the envelope keys `error`, `message` and `detail`, then the same keys inside a `detail` object (a plan gate's structured 403). Empty when the body has none. `Error::Api`'s `message` is this reason, or `API request failed with status <code>` when there is none or the body was not JSON.
 - `response.raw` — the full decoded JSON `Value`, in case you want to introspect a custom shape.
 
 ## Custom HTTP client

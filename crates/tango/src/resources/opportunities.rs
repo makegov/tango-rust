@@ -45,6 +45,11 @@ pub struct ListOpportunitiesOptions {
     /// Tri-state: `Some(true)`/`Some(false)` to filter; `None` to omit.
     #[builder(into)]
     pub active: Option<bool>,
+    /// Whether the opportunity has an award, either posted on it or linked to it from a separate award notice (Tango API 5.5.0). Searches every opportunity rather than only active ones, so pair it with [`active`](Self::active) to narrow to open opportunities. `Some(false)` reaches the server as a filter value.
+    pub awarded: Option<bool>,
+    /// The awardee's UEI, case-insensitive; OR several with `|` (Tango API 5.5.0). Searches every opportunity rather than only active ones.
+    #[builder(into)]
+    pub awardee_uei: Option<String>,
     /// Awarding agency CGAC code.
     #[builder(into)]
     pub agency: Option<String>,
@@ -113,6 +118,8 @@ impl ListOpportunitiesOptions {
             self.flat_lists,
         );
         push_opt_bool(&mut q, "active", self.active);
+        push_opt_bool(&mut q, "awarded", self.awarded);
+        push_opt(&mut q, "awardee_uei", self.awardee_uei.as_deref());
         push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(
             &mut q,
@@ -579,10 +586,11 @@ impl ListGrantsOptions {
 
 impl Client {
     /// `GET /api/opportunities/` — one page of opportunity records.
+    ///
+    /// The shape leaves documented on [`get_opportunity`](Self::get_opportunity) (award fields, attachment counts, `attachments(extraction_status)`) are accepted on the list too.
     pub async fn list_opportunities(&self, opts: ListOpportunitiesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/opportunities/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/opportunities/", &q).await
     }
 
     /// Stream every opportunity matching `opts`.
@@ -598,10 +606,11 @@ impl Client {
     }
 
     /// `GET /api/notices/` — one page of notice records.
+    ///
+    /// The shape leaves documented on [`get_notice`](Self::get_notice) are accepted on the list too.
     pub async fn list_notices(&self, opts: ListNoticesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/notices/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/notices/", &q).await
     }
 
     /// Stream every notice matching `opts`.
@@ -619,8 +628,7 @@ impl Client {
     /// `GET /api/forecasts/` — one page of forecast records.
     pub async fn list_forecasts(&self, opts: ListForecastsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/forecasts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/forecasts/", &q).await
     }
 
     /// Stream every forecast matching `opts`.
@@ -638,8 +646,7 @@ impl Client {
     /// `GET /api/grants/` — one page of grant records.
     pub async fn list_grants(&self, opts: ListGrantsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/grants/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/grants/", &q).await
     }
 
     /// Stream every grant matching `opts`.
@@ -655,6 +662,23 @@ impl Client {
     }
 
     /// `GET /api/opportunities/{opportunity_id}/` — a single opportunity.
+    ///
+    /// None of the fields below is in the SDK's default shape, so name the ones you want.
+    ///
+    /// **Award fields** (Tango API 5.5.0): `awarded`, `award_date`, `award_amount`, `awardee`, `awardee_uei`, `award_count`, `solicitation_opportunity_id` and the `awards(opportunity_id,notice_id,award_number,award_date,award_amount,awardee,awardee_uei)` expand.
+    /// `award_date`, `award_amount`, `awardee` and `awardee_uei` are filled only where SAM.gov posted an award notice, and `award_amount` is the text SAM.gov published, not a number.
+    /// When an award is posted as its own opportunity and references its solicitation, the award's `solicitation_opportunity_id` points back to the solicitation, whose `awards(...)` lists up to ten of the most recent linked awards; `award_count` is the full count.
+    /// `awarded` is true when the opportunity has an award of its own or has linked awards.
+    ///
+    /// **Attachment counts** (Tango API 5.9.0): `meta(attachments_count,files_count,links_count)`.
+    /// A `file` is a document attached to the notice (only files have extracted text) and a `link` is a URL the notice lists; `meta.attachments_count` still counts every attachment, so files plus links need not equal it.
+    /// `files_count` and `links_count` are null until the record has been counted: treat null as unknown, not zero.
+    ///
+    /// **`attachments(extraction_status)`** (Tango API 5.11.0) reports `pending`, `extracting`, `completed`, `failed` or `unsupported` for each attachment, which says why `extracted_text` is missing. It is available on every plan and returned only when named; `attachments(*)` does not carry it.
+    ///
+    /// ```text
+    /// opportunity_id,title,awarded,award_count,awards(notice_id,award_date,awardee_uei),meta(files_count,links_count),attachments(name,extraction_status)
+    /// ```
     pub async fn get_opportunity(
         &self,
         opportunity_id: &str,
@@ -673,6 +697,12 @@ impl Client {
     }
 
     /// `GET /api/notices/{notice_id}/` — a single notice.
+    ///
+    /// None of the fields below is in the SDK's default shape, so name the ones you want.
+    ///
+    /// - **Award fields** (Tango API 5.5.0): `award_date`, `award_amount`, `awardee` and `awardee_uei`, filled only where the notice posted an award.
+    /// - **Attachment counts** (Tango API 5.9.0): `file_count` and `link_count` beside `attachment_count`, which still counts every attachment, links included. The new counts are null until the record has been counted: treat null as unknown, not zero.
+    /// - **`attachments(extraction_status)`** (Tango API 5.11.0): `pending`, `extracting`, `completed`, `failed` or `unsupported` per attachment, on every plan, returned only when named.
     pub async fn get_notice(&self, notice_id: &str, opts: Option<ListOptions>) -> Result<Record> {
         if notice_id.is_empty() {
             return Err(Error::Validation {
@@ -770,6 +800,22 @@ mod tests {
         let opts = ListOpportunitiesOptions::builder().active(false).build();
         let q = opts.to_query();
         assert_eq!(get_q(&q, "active").as_deref(), Some("false"));
+    }
+
+    #[test]
+    fn opportunities_award_filters_emit() {
+        let q = ListOpportunitiesOptions::builder()
+            .awarded(false)
+            .awardee_uei("ABCDEF123456|ZYXWVU654321")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "awarded").as_deref(), Some("false"));
+        assert_eq!(
+            get_q(&q, "awardee_uei").as_deref(),
+            Some("ABCDEF123456|ZYXWVU654321")
+        );
+        let q = ListOpportunitiesOptions::default().to_query();
+        assert!(!q.iter().any(|(k, _)| k == "awarded" || k == "awardee_uei"));
     }
 
     #[test]

@@ -10,6 +10,7 @@ pub(crate) mod ebuy;
 pub(crate) mod entities;
 pub(crate) mod entity_subresources;
 pub(crate) mod exclusions;
+pub(crate) mod federal_register;
 pub(crate) mod gsa;
 pub(crate) mod idv_subresources;
 pub(crate) mod idvs;
@@ -45,6 +46,9 @@ pub use ebuy::{GetEbuyRequestOptions, ListEbuyRequestsOptions};
 pub use entities::{GetEntityOptions, ListEntitiesOptions};
 pub use entity_subresources::{EntityBudgetFlowsOptions, EntitySubresourceOptions};
 pub use exclusions::{GetExclusionOptions, ListExclusionsOptions};
+pub use federal_register::{
+    GetFederalRegisterDocumentOptions, ListFederalRegisterDocumentsOptions,
+};
 pub use gsa::{GetGsaElibraryContractOptions, ListGsaElibraryContractsOptions};
 pub use idv_subresources::IdvSubresourceOptions;
 pub use idvs::{GetIDVOptions, ListIDVsOptions};

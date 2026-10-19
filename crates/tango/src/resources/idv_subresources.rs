@@ -168,8 +168,7 @@ async fn list_idv_subresource(
     }
     let q = opts.to_query();
     let path = format!("/api/idvs/{}/{segment}/", urlencoding(key));
-    let bytes = client.get_bytes(&path, &q).await?;
-    Page::decode(&bytes)
+    client.get_page(&path, &q).await
 }
 
 fn iterate_idv_subresource(

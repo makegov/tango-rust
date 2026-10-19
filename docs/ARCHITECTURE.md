@@ -24,6 +24,8 @@ tango-rust/                           (workspace root)
 │   │       ├── version.rs            # VERSION const
 │   │       ├── models/               # Typed input/output structs
 │   │       │   ├── agency.rs
+│   │       │   ├── awards.rs         # FiscalYearObligation
+│   │       │   ├── budget.rs         # BudgetSourceAnomaly
 │   │       │   ├── ebuy.rs
 │   │       │   ├── protest.rs
 │   │       │   ├── resolve.rs
@@ -44,6 +46,7 @@ tango-rust/                           (workspace root)
 │   │           ├── gsa.rs
 │   │           ├── protests.rs
 │   │           ├── ebuy.rs            # GSA eBuy requests + attachment URL + access
+│   │           ├── federal_register.rs # Federal Register documents
 │   │           ├── itdashboard.rs
 │   │           ├── lcats.rs           # dispatcher (entity vs IDV)
 │   │           ├── lookups.rs        # organizations, NAICS, PSC, business types,
@@ -150,10 +153,13 @@ Validation-message extraction (`extract_validation_message`) walks the parsed bo
 `Page<T>` is the decoded envelope returned by `list_*` methods:
 
 ```rust
+#[non_exhaustive]
 pub struct Page<T> {
     pub count: u64,
     pub next: Option<String>,
     pub previous: Option<String>,
+    pub count_type: Option<String>,  // from this response's X-Results-CountType header
+    pub meta: Option<Value>,         // the response's `meta`, passed through
     pub page_metadata: Option<Value>,
     pub cursor: Option<String>,  // extracted from `next` for keyset endpoints
     pub results: Vec<T>,

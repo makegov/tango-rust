@@ -38,12 +38,15 @@ pub struct ListSbirTopicsOptions {
     /// Whether the topic is accepting proposals today: `open`, `closed`, or `unknown` (no close date and no parent solicitation to inherit one from).
     #[builder(into)]
     pub activity: Option<String>,
-    /// Partial, case-insensitive match on the raw agency text (e.g. `DOD`, `NIH`). Not organization-resolved, so variant spellings do not normalize.
+    /// Agency name, abbreviation or code (e.g. `HHS`), matched against the topic's resolved organization and rolled up the hierarchy, so `HHS` includes NIH topics. OR several with `|`. A token that does not resolve falls back to a partial, case-insensitive match on the raw agency text.
     #[builder(into)]
     pub agency: Option<String>,
     /// Topic number.
     #[builder(into)]
     pub topic_number: Option<String>,
+    /// Exact DoD DSIP cycle name, e.g. `DOD_SBIR_2026_P1_CBZ` (Tango API 5.3.1). Only topics fed from DSIP carry one.
+    #[builder(into)]
+    pub cycle_name: Option<String>,
     /// Parent solicitation number.
     #[builder(into)]
     pub solicitation_number: Option<String>,
@@ -98,6 +101,7 @@ impl ListSbirTopicsOptions {
         push_opt(&mut q, "activity", self.activity.as_deref());
         push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(&mut q, "topic_number", self.topic_number.as_deref());
+        push_opt(&mut q, "cycle_name", self.cycle_name.as_deref());
         push_opt(
             &mut q,
             "solicitation_number",
@@ -280,8 +284,7 @@ impl Client {
     /// `GET /api/sbir/topics/` — one page of SBIR/STTR topic records.
     pub async fn list_sbir_topics(&self, opts: ListSbirTopicsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sbir/topics/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sbir/topics/", &q).await
     }
 
     /// `GET /api/sbir/topics/{topic_id}/` — a single SBIR/STTR topic.
@@ -319,8 +322,7 @@ impl Client {
         opts: ListSbirSolicitationsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sbir/solicitations/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sbir/solicitations/", &q).await
     }
 
     /// `GET /api/sbir/solicitations/{solicitation_id}/` — a single DoD DSIP solicitation cycle.
@@ -589,5 +591,17 @@ mod tests {
         assert_eq!(get_q(&q, "shape").as_deref(), Some("a,b"));
         assert_eq!(get_q(&q, "flat").as_deref(), Some("true"));
         assert_eq!(get_q(&q, "flat_lists").as_deref(), Some("true"));
+    }
+
+    #[test]
+    fn list_sbir_topics_cycle_name_filter_emits() {
+        let q = ListSbirTopicsOptions::builder()
+            .cycle_name("DOD_SBIR_2026_P1_CBZ")
+            .build()
+            .to_query();
+        assert_eq!(
+            get_q(&q, "cycle_name").as_deref(),
+            Some("DOD_SBIR_2026_P1_CBZ")
+        );
     }
 }

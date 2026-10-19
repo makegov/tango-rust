@@ -218,11 +218,12 @@ impl Client {
     /// `GET /api/vehicles/` — one page of contracting-vehicle records.
     pub async fn list_vehicles(&self, opts: ListVehiclesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/vehicles/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/vehicles/", &q).await
     }
 
     /// `GET /api/vehicles/{uuid}/` — fetch a single contracting vehicle.
+    ///
+    /// The embedded solicitation accepts the opportunity attachment counts (Tango API 5.9.0): `opportunity(meta(files_count,links_count))`. Both are null until counted, so treat null as unknown, not zero.
     pub async fn get_vehicle(&self, uuid: &str, opts: Option<GetVehicleOptions>) -> Result<Record> {
         if uuid.is_empty() {
             return Err(Error::Validation {

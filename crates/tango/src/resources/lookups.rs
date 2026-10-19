@@ -220,6 +220,8 @@ pub struct ListPscOptions {
     /// Free-text search filter.
     #[builder(into)]
     pub search: Option<String>,
+    /// `Some(true)` returns only codes with contract award history. `Some(false)` is the same as unset: the server applies no filter.
+    pub has_awards: Option<bool>,
 
     /// Escape hatch for filter keys not first-classed here.
     #[builder(default)]
@@ -239,6 +241,7 @@ impl ListPscOptions {
             self.flat_lists,
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt_bool(&mut q, "has_awards", self.has_awards);
         for (k, v) in &self.extra {
             if !v.is_empty() {
                 q.push((k.clone(), v.clone()));
@@ -552,8 +555,7 @@ impl Client {
     /// `GET /api/organizations/` — one page of organization records.
     pub async fn list_organizations(&self, opts: ListOrganizationsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/organizations/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/organizations/", &q).await
     }
 
     /// Stream every organization record matching `opts`.
@@ -585,8 +587,7 @@ impl Client {
     /// `GET /api/naics/` — one page of NAICS records.
     pub async fn list_naics(&self, opts: ListNaicsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/naics/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/naics/", &q).await
     }
 
     /// Stream every NAICS record matching `opts`.
@@ -618,8 +619,7 @@ impl Client {
     /// `GET /api/psc/` — one page of PSC (Product/Service Code) records.
     pub async fn list_psc(&self, opts: ListPscOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/psc/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/psc/", &q).await
     }
 
     /// Stream every PSC record matching `opts`.
@@ -651,8 +651,7 @@ impl Client {
     /// `GET /api/mas_sins/` — one page of GSA MAS Special Item Number records.
     pub async fn list_mas_sins(&self, opts: ListMasSinsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/mas_sins/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/mas_sins/", &q).await
     }
 
     /// Stream every MAS SIN record matching `opts`.
@@ -687,8 +686,7 @@ impl Client {
         opts: ListAssistanceListingsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/assistance_listings/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/assistance_listings/", &q).await
     }
 
     /// Stream every Assistance Listing record matching `opts`.
@@ -728,8 +726,7 @@ impl Client {
         opts: ListBusinessTypesOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/business_types/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/business_types/", &q).await
     }
 
     /// Stream every business-type record matching `opts`.
@@ -762,8 +759,7 @@ impl Client {
     /// `GET /api/offices/` — one page of federal contracting office records.
     pub async fn list_offices(&self, opts: ListOfficesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/offices/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/offices/", &q).await
     }
 
     /// Stream every office record matching `opts`.
@@ -800,8 +796,7 @@ impl Client {
     /// compatibility.
     pub async fn list_departments(&self, opts: ListDepartmentsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/departments/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/departments/", &q).await
     }
 
     /// Stream every department record matching `opts`.
@@ -838,6 +833,16 @@ mod tests {
 
     fn get_q(q: &[(String, String)], k: &str) -> Option<String> {
         q.iter().find(|(kk, _)| kk == k).map(|(_, v)| v.clone())
+    }
+
+    #[test]
+    fn psc_has_awards_emits() {
+        let q = ListPscOptions::builder()
+            .has_awards(true)
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "has_awards").as_deref(), Some("true"));
+        assert!(ListPscOptions::builder().build().to_query().is_empty());
     }
 
     // ----- Organizations -----

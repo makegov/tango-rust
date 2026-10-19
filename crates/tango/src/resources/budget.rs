@@ -74,6 +74,9 @@ pub struct ListBudgetAccountsOptions {
     pub data_through_period_lte: Option<String>,
     /// `Some(true)` keeps only rows with no File A data (null `data_through_period`), `Some(false)` only rows with it (sent as `data_through_period__isnull`).
     pub data_through_period_isnull: Option<bool>,
+    /// A Tango agency name, abbreviation, code or organization key (e.g. `EPA`), matched against the account's resolved organization. Matches by name, abbreviation, or code (CGAC, FPDS, Federal Hierarchy key or AAC) and includes every sub-agency and office beneath it; OR several with `|`. A token that does not resolve falls back to an exact match on `agency_code`.
+    #[builder(into)]
+    pub agency: Option<String>,
     /// Agency code filter (exact).
     #[builder(into)]
     pub agency_code: Option<String>,
@@ -153,6 +156,7 @@ impl ListBudgetAccountsOptions {
             "data_through_period__isnull",
             self.data_through_period_isnull,
         );
+        push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
         push_opt(&mut q, "bureau_name", self.bureau_name.as_deref());
         push_opt(
@@ -239,8 +243,7 @@ impl Client {
         opts: ListBudgetAccountsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/budget/accounts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/budget/accounts/", &q).await
     }
 
     /// Stream every budget-account rollup matching `opts`.
@@ -286,8 +289,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/quarters/", urlencoding(id));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/budget/accounts/{id}/recipients/` — funding-office x recipient contract flows for a single account-year, largest `contract_obligated` first.
@@ -307,8 +309,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/recipients/", urlencoding(id));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 }
 
@@ -486,5 +487,14 @@ mod tests {
             Error::Validation { message, .. } => assert!(message.contains("id")),
             other => panic!("expected Validation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn list_budget_accounts_agency_filter_emits() {
+        let q = ListBudgetAccountsOptions::builder()
+            .agency("EPA")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "agency").as_deref(), Some("EPA"));
     }
 }

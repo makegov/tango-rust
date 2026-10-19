@@ -81,7 +81,7 @@ pub fn budget_data_through_period(record: &Record) -> Option<u8> {
 }
 
 /// Decode an amount sent as a JSON number or as a numeric string, since the API passes these values through as the source data carries them.
-fn number_or_numeric_string<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+pub(crate) fn number_or_numeric_string<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

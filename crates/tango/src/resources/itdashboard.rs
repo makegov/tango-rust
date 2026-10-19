@@ -14,11 +14,9 @@ use std::sync::Arc;
 /// Options for [`Client::list_itdashboard`] and [`Client::iterate_itdashboard`].
 ///
 /// Filters are tier-gated by the API:
-/// - **Free:** [`search`](Self::search)
-/// - **Pro:** [`agency_code`](Self::agency_code), [`type_of_investment`](Self::type_of_investment),
-///   [`updated_time_after`](Self::updated_time_after), [`updated_time_before`](Self::updated_time_before)
-/// - **Business+:** [`agency_name`](Self::agency_name), [`cio_rating`](Self::cio_rating),
-///   [`cio_rating_max`](Self::cio_rating_max), [`performance_risk`](Self::performance_risk)
+/// - **Free:** [`search`](Self::search), [`agency_name`](Self::agency_name), [`agency`](Self::agency) and [`previous_uii`](Self::previous_uii)
+/// - **Pro:** [`agency_code`](Self::agency_code), [`type_of_investment`](Self::type_of_investment), [`updated_time_after`](Self::updated_time_after), [`updated_time_before`](Self::updated_time_before)
+/// - **Business+:** [`cio_rating`](Self::cio_rating), [`cio_rating_max`](Self::cio_rating_max), [`performance_risk`](Self::performance_risk)
 ///
 /// Hitting a gated filter on a lower tier returns a 403. CIO ratings:
 /// 1=High Risk, 2=Moderately High, 3=Medium, 4=Moderately Low, 5=Low.
@@ -52,9 +50,12 @@ pub struct ListItdashboardOptions {
     /// Agency code filter (Pro tier).
     #[builder(into)]
     pub agency_code: Option<String>,
-    /// Agency name filter (Business+ tier).
+    /// Agency name filter: a partial text match on `agency_name` (Free tier).
     #[builder(into)]
     pub agency_name: Option<String>,
+    /// A Tango agency name, abbreviation, code or organization key (e.g. `DOT`), matched against the investment's resolved organization (Free tier). Matches by name, abbreviation, or code (CGAC, FPDS, Federal Hierarchy key or AAC) and includes every sub-agency and office beneath it; OR several with `|`. A token that does not resolve falls back to a partial match on `agency_name`.
+    #[builder(into)]
+    pub agency: Option<String>,
     /// Investment type filter (Pro tier).
     #[builder(into)]
     pub type_of_investment: Option<String>,
@@ -103,6 +104,7 @@ impl ListItdashboardOptions {
         push_opt(&mut q, "previous_uii", self.previous_uii.as_deref());
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
         push_opt(&mut q, "agency_name", self.agency_name.as_deref());
+        push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(
             &mut q,
             "type_of_investment",
@@ -163,8 +165,7 @@ impl Client {
     /// `GET /api/itdashboard/` — one page of federal IT investments.
     pub async fn list_itdashboard(&self, opts: ListItdashboardOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/itdashboard/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/itdashboard/", &q).await
     }
 
     /// `GET /api/itdashboard/{uii}/` — fetch a single investment
@@ -298,5 +299,14 @@ mod tests {
             .build()
             .to_query();
         assert_eq!(get_q(&q, "previous_uii").as_deref(), Some("015-000000100"));
+    }
+
+    #[test]
+    fn list_itdashboard_agency_filter_emits() {
+        let q = ListItdashboardOptions::builder()
+            .agency("DOT")
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "agency").as_deref(), Some("DOT"));
     }
 }

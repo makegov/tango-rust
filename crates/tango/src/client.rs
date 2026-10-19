@@ -254,14 +254,21 @@ impl Client {
         transport::decode_json(&bytes)
     }
 
-    /// Internal: GET `path` with `query`, return raw bytes.
-    pub(crate) async fn get_bytes(
+    /// Internal: GET a list endpoint and decode it as a [`Page`](crate::Page), reading `count_type` from the response headers.
+    pub(crate) async fn get_page<T: serde::de::DeserializeOwned>(
         &self,
         path: &str,
         query: &[(String, String)],
-    ) -> Result<Vec<u8>> {
+    ) -> Result<crate::Page<T>> {
         let url = self.build_url(path, query)?;
-        transport::send_with_retries(&self.inner, reqwest::Method::GET, url, Body::None).await
+        let (bytes, headers) = transport::send_with_retries_and_headers(
+            &self.inner,
+            reqwest::Method::GET,
+            url,
+            Body::None,
+        )
+        .await?;
+        crate::Page::decode_response(&bytes, &headers)
     }
 
     /// Internal: GET `path` without following redirects and return the

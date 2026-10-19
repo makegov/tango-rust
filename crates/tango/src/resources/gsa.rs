@@ -131,8 +131,7 @@ impl Client {
         opts: ListGsaElibraryContractsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/gsa_elibrary_contracts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/gsa_elibrary_contracts/", &q).await
     }
 
     /// `GET /api/gsa_elibrary_contracts/{uuid}/` — fetch a single GSA eLibrary

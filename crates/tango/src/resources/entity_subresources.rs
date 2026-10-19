@@ -241,8 +241,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/entities/{}/budget-flows/", urlencoding(uei));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/entities/{uei}/metrics/{months}/{period_grouping}/` — rolling
@@ -299,8 +298,7 @@ async fn list_entity_subresource(
     }
     let q = opts.to_query();
     let path = format!("/api/entities/{}/{segment}/", urlencoding(uei));
-    let bytes = client.get_bytes(&path, &q).await?;
-    Page::decode(&bytes)
+    client.get_page(&path, &q).await
 }
 
 fn iterate_entity_subresource(

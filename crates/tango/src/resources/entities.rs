@@ -163,8 +163,7 @@ impl Client {
     /// `GET /api/entities/` — one page of entity records.
     pub async fn list_entities(&self, opts: ListEntitiesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/entities/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/entities/", &q).await
     }
 
     /// `GET /api/entities/{uei}/` — fetch a single entity by UEI or CAGE code.

@@ -39,8 +39,7 @@ impl Client {
     pub async fn list_webhook_endpoints(&self, opts: ListOptions) -> Result<Page<WebhookEndpoint>> {
         let mut q = Vec::new();
         opts.apply(&mut q);
-        let bytes = self.get_bytes("/api/webhooks/endpoints/", &q).await?;
-        Page::<WebhookEndpoint>::decode(&bytes)
+        self.get_page("/api/webhooks/endpoints/", &q).await
     }
 
     /// `GET /api/webhooks/endpoints/{id}/` — fetch a single endpoint.
@@ -156,8 +155,7 @@ impl Client {
     pub async fn list_webhook_alerts(&self, opts: ListOptions) -> Result<Page<WebhookAlert>> {
         let mut q = Vec::new();
         opts.apply(&mut q);
-        let bytes = self.get_bytes("/api/webhooks/alerts/", &q).await?;
-        Page::<WebhookAlert>::decode(&bytes)
+        self.get_page("/api/webhooks/alerts/", &q).await
     }
 
     /// `GET /api/webhooks/alerts/{id}/` — fetch a single alert.

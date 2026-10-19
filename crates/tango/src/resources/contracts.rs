@@ -112,9 +112,12 @@ pub struct ListContractsOptions {
     /// Recipient name filter (canonical name).
     #[builder(into)]
     pub recipient: Option<String>,
-    /// Recipient UEI filter (canonical name).
+    /// Recipient UEI filter (canonical name). Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
+    /// FPDS commercial item acquisition procedures code (Tango API 5.10.0), case-insensitive: `A` (commercial products/services), `B` (products or services pursuant to FAR 12.102(f)), `C` (services pursuant to FAR 12.102(g)), `D` (commercial procedures not used) or `E` (DoD Section 803 Commercial Solutions Opening). OR several with `|`, e.g. `A|E`; an unknown or multi-character code matches nothing. The API does not offer it on OTAs or OT IDVs.
+    #[builder(into)]
+    pub commercial_item_acquisition_procedures: Option<String>,
     /// Set-aside filter (canonical name).
     #[builder(into)]
     pub set_aside: Option<String>,
@@ -129,7 +132,7 @@ pub struct ListContractsOptions {
     /// SDK-friendly alias for [`recipient`](Self::recipient).
     #[builder(into)]
     pub recipient_name: Option<String>,
-    /// SDK-friendly alias for [`uei`](Self::uei).
+    /// SDK-friendly alias for [`uei`](Self::uei). Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub recipient_uei: Option<String>,
     /// SDK-friendly alias for [`set_aside`](Self::set_aside).
@@ -230,6 +233,11 @@ impl ListContractsOptions {
         );
         push_opt(
             &mut q,
+            "commercial_item_acquisition_procedures",
+            self.commercial_item_acquisition_procedures.as_deref(),
+        );
+        push_opt(
+            &mut q,
             "set_aside",
             first_non_empty(&[self.set_aside_type.as_deref(), self.set_aside.as_deref()]),
         );
@@ -258,10 +266,12 @@ impl ListContractsOptions {
 
 impl Client {
     /// `GET /api/contracts/` — one page of federal contract records.
+    ///
+    /// Name `obligations_by_fiscal_year(fiscal_year,obligated)` in `shape` for the award's obligations per federal fiscal year (Tango API 5.11.0), and decode it with [`FiscalYearObligation::from_record`](crate::models::FiscalYearObligation::from_record).
+    /// The same expand works on the IDV, OTA and OT IDV lists and every award `get_*`, but it is always null on IDVs and OT IDVs.
     pub async fn list_contracts(&self, opts: ListContractsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/contracts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/contracts/", &q).await
     }
 
     /// `GET /api/contracts/{key}/` — a single federal contract record.
@@ -293,8 +303,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/contracts/{}/subawards/", urlencoding(key));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/contracts/{key}/transactions/` — raw transaction history
@@ -312,8 +321,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/contracts/{}/transactions/", urlencoding(key));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// Stream every federal contract record matching `opts`. The stream follows
@@ -451,5 +459,17 @@ mod tests {
             .build()
             .to_query();
         assert_eq!(get_q(&q, "key").as_deref(), Some("K1|K2"));
+    }
+
+    #[test]
+    fn list_contracts_commercial_item_acquisition_procedures_emits() {
+        let q = ListContractsOptions::builder()
+            .commercial_item_acquisition_procedures("A|E")
+            .build()
+            .to_query();
+        assert_eq!(
+            get_q(&q, "commercial_item_acquisition_procedures").as_deref(),
+            Some("A|E")
+        );
     }
 }

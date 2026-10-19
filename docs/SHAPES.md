@@ -76,7 +76,7 @@ let page = client.list_contracts(
 
 ## Shape preset constants
 
-All 34 constants live in `shapes.rs` and are re-exported at the crate root. They mirror the `ShapeConfig.*` enums in `tango-node` and `tango-python` exactly — same names, same field selectors, same intent.
+All 37 constants live in `shapes.rs` and are re-exported at the crate root. They mirror the `ShapeConfig.*` enums in `tango-node` and `tango-python` exactly — same names, same field selectors, same intent.
 
 | Constant | Intended use | Notes |
 | -------- | ------------ | ----- |
@@ -108,6 +108,8 @@ All 34 constants live in `shapes.rs` and are re-exported at the crate root. They
 | `SHAPE_SLED_FORECASTS_MINIMAL` | `list_sled_forecasts` | forecast identity, agency, advertisement estimate, value band |
 | `SHAPE_SLED_FORECASTS_COMPREHENSIVE` | `get_sled_forecast` | the above + description, organization, contact |
 | `SHAPE_BUDGET_ACCOUNTS_MINIMAL` | `list_budget_accounts` | the API's default: identity (including `data_through_period` and `account_category`) + lifecycle dollars + attribution status + capped ratios + `source_anomalies` |
+| `SHAPE_FEDERAL_REGISTER_MINIMAL` | `list_federal_register_documents` | the API's default: uuid, document number, publication date, type, title, abstract, action, agencies, CFR references, citation, significance, comment and effective dates, links |
+| `SHAPE_FEDERAL_REGISTER_COMPREHENSIVE` | `get_federal_register_document` | the API's detail default: the above + dates, pages, dockets, RINs, topics, corrections, presidential document numbers, comment and text URLs (never `full_text`, which can run to several MB and must be named) |
 | `SHAPE_EBUY_REQUESTS_MINIMAL` | `list_ebuy_requests` | the API's default: request identity, schedule/SIN, frozen status, buyer, dates, attachment and link counts, last_seen (never the attachment text: name `attachments(extracted_text)`, which `attachments(*)` does not carry and which is absent on an attachment with no text) |
 | `SHAPE_DIBBS_RFQS_MINIMAL` | `list_dibbs_rfqs` | uuid, solicitation, NSN, part number, nomenclature, quantity, dates, is_open |
 | `SHAPE_DIBBS_RFPS_MINIMAL` | `list_dibbs_rfps` | uuid, solicitation, NSN, part number, nomenclature, dates, is_open |

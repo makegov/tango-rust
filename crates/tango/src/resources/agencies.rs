@@ -133,8 +133,7 @@ impl Client {
     /// `GET /api/agencies/` — list federal agencies.
     pub async fn list_agencies(&self, opts: ListAgenciesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/agencies/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/agencies/", &q).await
     }
 
     /// `GET /api/agencies/{code}/` — fetch a single agency.
@@ -211,8 +210,7 @@ async fn list_agency_contracts(
     }
     let q = opts.to_query();
     let path = format!("/api/agencies/{}/contracts/{which}/", urlencoding(code));
-    let bytes = client.get_bytes(&path, &q).await?;
-    Page::decode(&bytes)
+    client.get_page(&path, &q).await
 }
 
 fn iterate_agency_contracts(

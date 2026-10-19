@@ -62,7 +62,7 @@ pub struct ListOTAsOptions {
     /// Recipient name filter.
     #[builder(into)]
     pub recipient: Option<String>,
-    /// Recipient UEI.
+    /// Recipient UEI. Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
 
@@ -254,7 +254,7 @@ pub struct ListOTIDVsOptions {
     /// Recipient name filter.
     #[builder(into)]
     pub recipient: Option<String>,
-    /// Recipient UEI.
+    /// Recipient UEI. Several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0).
     #[builder(into)]
     pub uei: Option<String>,
 
@@ -564,8 +564,7 @@ impl Client {
     /// `GET /api/otas/` — one page of Other Transaction Authority award actions.
     pub async fn list_otas(&self, opts: ListOTAsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/otas/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/otas/", &q).await
     }
 
     /// `GET /api/otas/{key}/` — fetch a single OTA by key.
@@ -596,8 +595,7 @@ impl Client {
     /// `GET /api/otidvs/` — one page of Other Transaction IDV parent records.
     pub async fn list_otidvs(&self, opts: ListOTIDVsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/otidvs/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/otidvs/", &q).await
     }
 
     /// `GET /api/otidvs/{key}/` — fetch a single OTIDV by key.
@@ -639,8 +637,7 @@ impl Client {
         }
         let q = opts.to_query();
         let path = format!("/api/otidvs/{}/awards/", urlencoding(key));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// Stream every child award under the given OTIDV parent.

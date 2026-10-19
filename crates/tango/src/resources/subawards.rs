@@ -109,8 +109,7 @@ impl Client {
     /// `GET /api/subawards/` — one page of subaward records.
     pub async fn list_subawards(&self, opts: ListSubawardsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/subawards/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/subawards/", &q).await
     }
 
     /// `GET /api/subawards/{key}/` — a single subaward record.

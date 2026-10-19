@@ -20,11 +20,8 @@ use std::time::Duration;
 /// - `{"message": "..."}` or `{"error": "..."}` (generic envelope)
 /// - `{"<field>": ["..."]}` (DRF field-error array)
 ///
-/// The raw decoded JSON is preserved in [`ErrorBody::raw`] for callers that
-/// need to inspect a custom shape. [`ErrorBody::message`] is the SDK's best
-/// guess at a human-readable line — extracted by walking envelope keys
-/// (`detail` / `message` / `error`) first, then sorted-key iteration over the
-/// remaining keys.
+/// The raw decoded JSON is preserved in [`ErrorBody::raw`] for callers that need to inspect a custom shape.
+/// [`ErrorBody::message`] is the server's own explanation: the first non-empty string among the envelope keys `error`, `message` and `detail`, then the same keys inside a `detail` object (a plan gate's structured 403).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ErrorBody {
     /// The human-readable message the SDK extracted from the body, when one
