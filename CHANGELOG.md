@@ -7,7 +7,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Pre-1.0 (SemVer 0.x): the change under **Breaking** ships without a deprecation cycle.
+
 ### `makegov-tango`
+
+#### Breaking
+
+- **`Page<T>` is now `#[non_exhaustive]` and gains `count_type` and `meta`.** Code that reads a page is unaffected; code that built a `Page` with a struct literal or destructured it without `..` no longer compiles. The SDK builds pages and callers read them, so this closes the door on the next field addition being breaking too.
 
 #### Added
 
@@ -24,15 +30,35 @@ This project follows [Semantic Versioning](https://semver.org/).
 - **`account_category` and `account_category_in` on `ListBudgetAccountsOptions`** (sent as `account_category` and `account_category__in`). Values are `budgetary` or `credit_financing` today; credit financing accounts have null `enacted_ba` and are left out of organization budget totals.
 - **Vehicle company counts** (Tango API 5.8.0): `SHAPE_VEHICLES_MINIMAL` and `SHAPE_VEHICLES_COMPREHENSIVE` now request `holder_count` (distinct companies holding one of the vehicle's IDVs) and `order_winner_count` (distinct companies that have won a task order under it), next to `awardee_count`.
 
+- **`Page::count_type`**: `"exact"` or `"approximate"`, read from the `X-Results-CountType` header of each list response, `None` when the endpoint does not send it. Past 1,000 matches the contract, IDV, opportunity and notice lists may report a query-planner estimate as `count`, which can be well off; this is how to tell. It is taken from each response itself, so concurrent calls on one client never see each other's value the way `last_response_headers` can.
+- **`Page::meta`**: the response's `meta` object, passed through as the API sends it. The SDK dropped it before, so agency-filter diagnostics and upgrade hints were unreachable. Each entry of `meta["resolved_filters"][<filter name>]` that resolved now says how its token matched in `matched_by` (Tango API 5.9.0): `key` (an organization UUID), `code` (a 3-digit CGAC or 4-digit FPDS code), `name` (the organization's name, including a department's everyday name, a spelling variant or a rename), `alias` (an abbreviation or the organization's own alias) or `fuzzy` (a looser text match, worth checking against the resolved name). An entry that did not resolve has no `matched_by`.
+- **Federal Register documents** (Tango API 5.3.0). `resources/federal_register.rs` adds `list_federal_register_documents` / `iterate_federal_register_documents` and `get_federal_register_document`, with `ListFederalRegisterDocumentsOptions`, `GetFederalRegisterDocumentOptions`, `SHAPE_FEDERAL_REGISTER_MINIMAL` and `SHAPE_FEDERAL_REGISTER_COMPREHENSIVE`. These are the rules, proposed rules, notices and presidential documents published in the Federal Register since 1994. All seventeen of the API's filters are named fields, including `comments_open`, `cfr_title` / `cfr_part`, `rin`, and both `agency` (a Tango organization, including its sub-agencies) and `fr_agency` (the Federal Register's own agency slug); the document type filter is `r#type`. `get_federal_register_document` takes the document's `uuid`, not its `document_number`, because a document number is not unique on its own: the Federal Register reused some before 2016. Look a document up by number with `document_number` on the list. `full_text` is served on the detail method only when named in `shape`, and neither shape constant includes it, since it can run to several MB. `ordering = "rank"` requires a non-empty `search`, matching the API.
+- **`federal_register` and `ebuy_request` alert query types** (`alerts.federal_register.match`, `alerts.ebuy_request.match`). The SDK models `query_type` and event types as strings, so `create_webhook_alert` already accepted them; `docs/WEBHOOKS.md` now names them, and that an eBuy alert sees only the requests your account can read.
+- **`agency` on `ListBudgetAccountsOptions`, `ListExclusionsOptions` and `ListItdashboardOptions`** (Tango API 5.3.0). It takes a Tango agency name, abbreviation, code or organization key (e.g. `EPA`) and matches the whole organization subtree, so a department includes its sub-agencies; OR several with `|`. On exclusions it scopes by the excluding agency. On IT Dashboard it is available at every plan.
+- **The `organization(...)` expand on budget accounts, exclusions, SBIR topics and SBIR solicitations, and `organization_id` on budget accounts and exclusions** (Tango API 5.3.0), carrying `agency_code`, `agency_name`, `department_code`, `department_name`, `office_code`, `office_name` and `organization_id`. This SDK passes `shape` through, so it needed no code change; `docs/API_REFERENCE.md` documents it. The default shapes are unchanged.
+- **`cycle_name` on `ListSbirTopicsOptions`** (Tango API 5.3.1) filters topics by their exact DoD DSIP solicitation cycle (e.g. `DOD_SBIR_2026_P1_CBZ`); `cycle_name` is also a topic field.
+- **`awarded` and `awardee_uei` on `ListOpportunitiesOptions`** (Tango API 5.5.0). Both search every opportunity rather than only active ones. `get_opportunity`, `get_notice` and `docs/API_REFERENCE.md` document the award leaves (`awarded`, `award_date`, `award_amount`, `awardee`, `awardee_uei`, `award_count`, `solicitation_opportunity_id`) and the `awards(...)` expand; none is in a default shape.
+- **File and link counts on opportunities and notices** (Tango API 5.9.0), documented on `get_opportunity`, `get_notice` and `get_vehicle`: `meta.files_count` and `meta.links_count` on opportunities, `file_count` and `link_count` on notices, and `opportunity(meta(files_count,links_count))` on vehicles. The existing totals still count every attachment, links included, so files plus links need not equal them. The new fields are null until a record has been counted, so treat null as unknown, not zero. No default shape names them.
+- **`commercial_item_acquisition_procedures` on `ListContractsOptions` and `ListIDVsOptions`** (Tango API 5.10.0). Filters by the FPDS commercial item acquisition procedures code: `A` (commercial products/services), `B` (products or services pursuant to FAR 12.102(f)), `C` (services pursuant to FAR 12.102(g)), `D` (commercial procedures not used) or `E` (DoD Section 803 Commercial Solutions Opening). Codes are case-insensitive and pipe-separated for OR, e.g. `"A|E"`; an unknown or multi-character code matches nothing. The API does not offer it on OTAs or OT IDVs, so their options do not take it.
+- **`obligations_by_fiscal_year(fiscal_year, obligated)` on contracts, IDVs, OTAs and OT IDVs** (Tango API 5.11.0). The shape expand returns the award's obligations per federal fiscal year, oldest first, each rounded to cents; `models::FiscalYearObligation::from_record` decodes it from a record (`fiscal_year` as `i64`, `obligated` as `f64`), returning `Ok(None)` when it is null or not in the shape. It is always null on IDVs and OT IDVs, whose transactions report a running lifetime total.
+- **`attachments(extraction_status)` on opportunities and notices** (Tango API 5.11.0), documented on `get_opportunity` and `get_notice`: `pending`, `extracting`, `completed`, `failed` or `unsupported` for each attachment, so you can tell why `extracted_text` is missing. It is returned only when named, at every plan.
+- **Filters tango-python already exposed:** `has_awards` on `ListPscOptions` (only codes with contract award history), `search` on `ListVehicleAwardeesOptions` and `ordering` on `ListVehicleOrdersOptions` (`award_date`, the default, `obligated` or `total_contract_value`).
+
 #### Changed
 
 - The retry loop is shared between body-returning requests and the redirect-reading call, so `get_ebuy_attachment_url` retries 429, 5xx and transport failures exactly as every other method does.
 - **`SHAPE_BUDGET_ACCOUNTS_MINIMAL` matches the API's default shape again.** It adds `data_through_period` (right after `fiscal_year`), `account_category` and `source_anomalies`, plus `attribution_status`, `attribution_confidence` and `contract_obligated_estimated`, which the API's default already carried.
 - **The API's default budget-account ordering now puts null `enacted_ba` last** within each fiscal year, with `id` breaking ties so pages are stable. No SDK change is needed; the `ordering` field documents it.
+- `uei` / `recipient_uei` on `ListContractsOptions`, and `uei` on `ListIDVsOptions`, `ListOTAsOptions` and `ListOTIDVsOptions`, document that several UEIs joined by `|` match awards to any of them, up to 500 (Tango API 5.11.0). The SDK already passed the value through unchanged.
 
 #### Deprecated
 
 - **`awardee_count` on vehicles** is deprecated by the Tango API as an alias of `order_winner_count`, and is removed at the API's next major version. The vehicle shapes still request it so existing readers keep working; read `order_winner_count` instead.
+
+#### Fixed
+
+- **`ListItdashboardOptions` documents the API's current filter tiers.** `agency_name` is available at every plan, not Business+ only, and so are `agency` and `previous_uii`.
+- **The SBIR topic `agency` filter is documented as organization-resolved.** It rolls up the hierarchy (`HHS` includes NIH topics) and falls back to the raw agency text only for a token that does not resolve; the docs said it never resolved.
 
 ## [0.2.0] — 2026-09-23
 

@@ -24,6 +24,8 @@ tango-rust/                           (workspace root)
 │   │       ├── version.rs            # VERSION const
 │   │       ├── models/               # Typed input/output structs
 │   │       │   ├── agency.rs
+│   │       │   ├── awards.rs         # FiscalYearObligation
+│   │       │   ├── budget.rs         # BudgetSourceAnomaly
 │   │       │   ├── ebuy.rs
 │   │       │   ├── protest.rs
 │   │       │   ├── resolve.rs
@@ -44,6 +46,7 @@ tango-rust/                           (workspace root)
 │   │           ├── gsa.rs
 │   │           ├── protests.rs
 │   │           ├── ebuy.rs            # GSA eBuy requests + attachment URL + access
+│   │           ├── federal_register.rs # Federal Register documents
 │   │           ├── itdashboard.rs
 │   │           ├── lcats.rs           # dispatcher (entity vs IDV)
 │   │           ├── lookups.rs        # organizations, NAICS, PSC, business types,

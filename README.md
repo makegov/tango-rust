@@ -290,6 +290,7 @@ The SDK exposes a method on `Client` for every public endpoint the sibling SDKs 
 | DIBBS (DLA) | `list_dibbs_rfqs` / `list_dibbs_rfps` / `list_dibbs_awards` | `get_dibbs_rfq` / `get_dibbs_rfp` / `get_dibbs_award` | `iterate_dibbs_*` |
 | GSA eBuy | `list_ebuy_requests` | `get_ebuy_request` | `iterate_ebuy_requests` |
 | Exclusions | `list_exclusions` | `get_exclusion` | `iterate_exclusions` |
+| Federal Register | `list_federal_register_documents` | `get_federal_register_document` | `iterate_federal_register_documents` |
 | SBIR / STTR | `list_sbir_topics` / `list_sbir_solicitations` | `get_sbir_topic` / `get_sbir_solicitation` | `iterate_sbir_*` |
 | State & local (SLED) | `list_sled_opportunities` / `list_sled_forecasts` | `get_sled_opportunity` / `get_sled_forecast` | `iterate_sled_*` |
 | Budget accounts | `list_budget_accounts` | `get_budget_account` | `iterate_budget_accounts` |
