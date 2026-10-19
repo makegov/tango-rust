@@ -6,10 +6,13 @@
 //! breakdown, and request-vs-actual contract spend. The schema is wide
 //! (~63 fields) and shape-driven, so every method returns the untyped
 //! [`Record`] map like the other resource families.
+//! The `source_anomalies` list in each row decodes with
+//! [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record),
+//! and [`budget_data_through_period`](crate::models::budget_data_through_period) reads `data_through_period`.
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::{apply_pagination, push_opt, ListOptions};
+use crate::internal::{apply_pagination, push_opt, push_opt_bool, ListOptions};
 use crate::pagination::{FetchFn, Page, PageStream};
 use crate::resources::agencies::urlencoding;
 use crate::Record;
@@ -20,7 +23,8 @@ use std::sync::Arc;
 /// Options for [`Client::list_budget_accounts`] and [`Client::iterate_budget_accounts`].
 ///
 /// The API rejects an unknown filter name with a 400 rather than ignoring it.
-/// The exact, `__gte` and `__lte` range filters on the numeric lifecycle and ratio fields (e.g. `enacted_ba__gte`), and the `__in` multi-value variants, are reachable via the [`extra`](Self::extra) map.
+/// The exact, `__gte` and `__lte` range filters on the numeric lifecycle and ratio fields (e.g. `enacted_ba__gte`), and the `__in` multi-value variants other than [`account_category_in`](Self::account_category_in), are reachable via the [`extra`](Self::extra) map.
+/// There is no filter on `source_anomalies`; it is in the default shape, so every row already carries it.
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ListBudgetAccountsOptions {
@@ -59,6 +63,17 @@ pub struct ListBudgetAccountsOptions {
     /// Upper bound for `fiscal_year` (inclusive).
     #[builder(into)]
     pub fiscal_year_lte: Option<String>,
+    /// `data_through_period` filter (exact): the File A fiscal period (1-12) the account-year's figures run through.
+    #[builder(into)]
+    pub data_through_period: Option<String>,
+    /// Lower bound for `data_through_period` (inclusive).
+    #[builder(into)]
+    pub data_through_period_gte: Option<String>,
+    /// Upper bound for `data_through_period` (inclusive).
+    #[builder(into)]
+    pub data_through_period_lte: Option<String>,
+    /// `Some(true)` keeps only rows with no File A data (null `data_through_period`), `Some(false)` only rows with it (sent as `data_through_period__isnull`).
+    pub data_through_period_isnull: Option<bool>,
     /// Agency code filter (exact).
     #[builder(into)]
     pub agency_code: Option<String>,
@@ -77,10 +92,18 @@ pub struct ListBudgetAccountsOptions {
     /// On/off-budget flag filter (exact).
     #[builder(into)]
     pub on_off_budget: Option<String>,
+    /// Account category filter (exact): `budgetary` or `credit_financing` today.
+    /// Credit financing accounts have no enacted budget authority (`enacted_ba` is null) and are left out of organization budget totals.
+    #[builder(into)]
+    pub account_category: Option<String>,
+    /// Several account categories, comma-separated (sent as `account_category__in`).
+    #[builder(into)]
+    pub account_category_in: Option<String>,
     /// Free-text search filter.
     #[builder(into)]
     pub search: Option<String>,
     /// Server-side sort spec (prefix `-` for descending).
+    /// The default is latest fiscal year first, then largest `enacted_ba`, with null `enacted_ba` last and `id` breaking ties.
     #[builder(into)]
     pub ordering: Option<String>,
 
@@ -110,6 +133,26 @@ impl ListBudgetAccountsOptions {
         push_opt(&mut q, "fiscal_year", self.fiscal_year.as_deref());
         push_opt(&mut q, "fiscal_year__gte", self.fiscal_year_gte.as_deref());
         push_opt(&mut q, "fiscal_year__lte", self.fiscal_year_lte.as_deref());
+        push_opt(
+            &mut q,
+            "data_through_period",
+            self.data_through_period.as_deref(),
+        );
+        push_opt(
+            &mut q,
+            "data_through_period__gte",
+            self.data_through_period_gte.as_deref(),
+        );
+        push_opt(
+            &mut q,
+            "data_through_period__lte",
+            self.data_through_period_lte.as_deref(),
+        );
+        push_opt_bool(
+            &mut q,
+            "data_through_period__isnull",
+            self.data_through_period_isnull,
+        );
         push_opt(&mut q, "agency_code", self.agency_code.as_deref());
         push_opt(&mut q, "bureau_name", self.bureau_name.as_deref());
         push_opt(
@@ -120,6 +163,12 @@ impl ListBudgetAccountsOptions {
         push_opt(&mut q, "subfunction_code", self.subfunction_code.as_deref());
         push_opt(&mut q, "bea_category", self.bea_category.as_deref());
         push_opt(&mut q, "on_off_budget", self.on_off_budget.as_deref());
+        push_opt(&mut q, "account_category", self.account_category.as_deref());
+        push_opt(
+            &mut q,
+            "account_category__in",
+            self.account_category_in.as_deref(),
+        );
         push_opt(&mut q, "search", self.search.as_deref());
         push_opt(&mut q, "ordering", self.ordering.as_deref());
         for (k, v) in &self.extra {
@@ -278,12 +327,18 @@ mod tests {
             .fiscal_year("2024")
             .fiscal_year_gte("2020")
             .fiscal_year_lte("2025")
+            .data_through_period("9")
+            .data_through_period_gte("3")
+            .data_through_period_lte("11")
+            .data_through_period_isnull(false)
             .agency_code("9700")
             .bureau_name("Operation and Maintenance")
             .account_title("readiness")
             .subfunction_code("051")
             .bea_category("discretionary")
             .on_off_budget("on")
+            .account_category("credit_financing")
+            .account_category_in("budgetary,credit_financing")
             .search("operations")
             .ordering("-enacted_ba")
             .build();
@@ -295,6 +350,13 @@ mod tests {
         assert_eq!(get_q(&q, "fiscal_year").as_deref(), Some("2024"));
         assert_eq!(get_q(&q, "fiscal_year__gte").as_deref(), Some("2020"));
         assert_eq!(get_q(&q, "fiscal_year__lte").as_deref(), Some("2025"));
+        assert_eq!(get_q(&q, "data_through_period").as_deref(), Some("9"));
+        assert_eq!(get_q(&q, "data_through_period__gte").as_deref(), Some("3"));
+        assert_eq!(get_q(&q, "data_through_period__lte").as_deref(), Some("11"));
+        assert_eq!(
+            get_q(&q, "data_through_period__isnull").as_deref(),
+            Some("false")
+        );
         assert_eq!(get_q(&q, "agency_code").as_deref(), Some("9700"));
         assert_eq!(
             get_q(&q, "bureau_name").as_deref(),
@@ -307,6 +369,14 @@ mod tests {
         assert_eq!(get_q(&q, "subfunction_code").as_deref(), Some("051"));
         assert_eq!(get_q(&q, "bea_category").as_deref(), Some("discretionary"));
         assert_eq!(get_q(&q, "on_off_budget").as_deref(), Some("on"));
+        assert_eq!(
+            get_q(&q, "account_category").as_deref(),
+            Some("credit_financing")
+        );
+        assert_eq!(
+            get_q(&q, "account_category__in").as_deref(),
+            Some("budgetary,credit_financing")
+        );
         assert_eq!(get_q(&q, "search").as_deref(), Some("operations"));
         assert_eq!(get_q(&q, "ordering").as_deref(), Some("-enacted_ba"));
     }
@@ -325,6 +395,20 @@ mod tests {
             get_q(&q, "shape").as_deref(),
             Some(crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL)
         );
+    }
+
+    #[test]
+    fn minimal_shape_carries_category_and_anomalies() {
+        let fields: Vec<&str> = crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL.split(',').collect();
+        assert!(fields.contains(&"account_category"));
+        assert!(fields.contains(&"source_anomalies"));
+    }
+
+    #[test]
+    fn minimal_shape_puts_data_through_period_after_fiscal_year() {
+        let fields: Vec<&str> = crate::SHAPE_BUDGET_ACCOUNTS_MINIMAL.split(',').collect();
+        let fy = fields.iter().position(|f| *f == "fiscal_year").unwrap();
+        assert_eq!(fields[fy + 1], "data_through_period");
     }
 
     #[test]
