@@ -6,7 +6,7 @@
 
 Official, async-first Rust SDK for the [Tango API](https://tango.makegov.com) — federal contracts, IDVs, entities, opportunities, grants, vehicles, and more, with dynamic response shaping so you fetch only the fields you need.
 
-> **Pre-1.0 — v0.2.0.** The resource surface now tracks the sibling SDKs endpoint for endpoint, but the public API may still shift before v1.0.0. Pin to a specific version if you depend on this in production.
+> **Pre-1.0 — v0.3.0.** The resource surface now tracks the sibling SDKs endpoint for endpoint, but the public API may still shift before v1.0.0. Pin to a specific version if you depend on this in production.
 
 The sibling SDKs are `tango-python`, `tango-node` and `tango-go`. This Rust port ships the full transport, error model, retry / rate-limit handling, webhook signing (in the separate `tango-webhooks` crate), and the resource-method surface. Same `0.x → 1.0` graduation logic as Go: the transport and types are stable; the surface stabilizes once it has been verified against the live API alongside the siblings.
 
@@ -25,10 +25,10 @@ The sibling SDKs are `tango-python`, `tango-node` and `tango-go`. This Rust port
 
 ```toml
 [dependencies]
-makegov-tango = "0.2"
+makegov-tango = "0.3"
 
 # Optional: webhook signing for receivers
-makegov-tango-webhooks = "0.2"
+makegov-tango-webhooks = "0.3"
 ```
 
 Crates publish under the `makegov-` prefix on crates.io; Rust imports stay short — `use tango::Client;` and `use tango_webhooks::verify;` — thanks to a `[lib] name` shim in each crate (same pattern as the `aws-sdk-*` family).
