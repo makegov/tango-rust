@@ -46,9 +46,9 @@ pub struct ListFederalRegisterDocumentsOptions {
     /// Exact FR document number, e.g. `2016-31922`. OR several with `|`. A number the Federal Register reused before 2016 matches every document that carries it.
     #[builder(into)]
     pub document_number: Option<String>,
-    /// Document type, sent as `type`: `Notice`, `Rule`, `Proposed Rule`, `Presidential Document`, `Correction`, `Sunshine Act Document` or `Uncategorized Document` (case-insensitive). OR several with `|`. Documents published before 2008 are mostly `Uncategorized Document`.
+    /// Document type: `Notice`, `Rule`, `Proposed Rule`, `Presidential Document`, `Correction`, `Sunshine Act Document` or `Uncategorized Document` (case-insensitive). OR several with `|`. Documents published before 2008 are mostly `Uncategorized Document`.
     #[builder(into)]
-    pub document_type: Option<String>,
+    pub r#type: Option<String>,
     /// A Tango agency name, abbreviation, code or organization key, e.g. `EPA`. Matches a document when any agency it lists falls within that organization, so a department includes its sub-agencies. OR several with `|`.
     #[builder(into)]
     pub agency: Option<String>,
@@ -113,7 +113,7 @@ impl ListFederalRegisterDocumentsOptions {
         );
         push_opt(&mut q, "search", self.search.as_deref());
         push_opt(&mut q, "document_number", self.document_number.as_deref());
-        push_opt(&mut q, "type", self.document_type.as_deref());
+        push_opt(&mut q, "type", self.r#type.as_deref());
         push_opt(&mut q, "agency", self.agency.as_deref());
         push_opt(&mut q, "fr_agency", self.fr_agency.as_deref());
         for (key, value) in [
@@ -234,7 +234,7 @@ mod tests {
         let opts = ListFederalRegisterDocumentsOptions::builder()
             .search("\"air quality\"")
             .document_number("2016-31922")
-            .document_type("Rule|Proposed Rule")
+            .r#type("Rule|Proposed Rule")
             .agency("EPA")
             .fr_agency("environmental-protection-agency")
             .publication_date_after("2024-01-01")

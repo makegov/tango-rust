@@ -712,7 +712,7 @@ async fn federal_register_routes() {
         .list_federal_register_documents(
             tango::ListFederalRegisterDocumentsOptions::builder()
                 .document_number("2016-31922")
-                .document_type("Rule")
+                .r#type("Rule")
                 .comments_open(false)
                 .build(),
         )
