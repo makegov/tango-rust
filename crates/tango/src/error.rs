@@ -70,6 +70,19 @@ pub enum Error {
         response: Option<ErrorBody>,
     },
 
+    /// HTTP 400 from an attachment-download route whose entry is an outbound
+    /// link rather than a stored document. There is nothing to download; `url`
+    /// is where the link points.
+    ///
+    /// Returned by [`Client::get_ebuy_attachment_url`](crate::Client::get_ebuy_attachment_url).
+    #[error("tango: attachment is an external link, not a stored document (status 400): {url}")]
+    ExternalLink {
+        /// The link's target URL.
+        url: String,
+        /// The parsed error body, when one was returned.
+        response: Option<ErrorBody>,
+    },
+
     /// HTTP 429 — the caller exceeded a rate limit.
     ///
     /// `retry_after` is populated from the `Retry-After` header when present
@@ -126,7 +139,7 @@ impl Error {
         match self {
             Self::Auth { .. } => Some(401),
             Self::NotFound { .. } => Some(404),
-            Self::Validation { .. } => Some(400),
+            Self::Validation { .. } | Self::ExternalLink { .. } => Some(400),
             Self::RateLimit { .. } => Some(429),
             Self::Api { status, .. } => Some(*status),
             Self::Timeout { .. } | Self::Transport(_) | Self::Decode(_) | Self::Build(_) => None,
@@ -154,6 +167,7 @@ impl Error {
             Self::Auth { .. }
             | Self::NotFound { .. }
             | Self::Validation { .. }
+            | Self::ExternalLink { .. }
             | Self::Decode(_)
             | Self::Build(_) => false,
         }
@@ -166,6 +180,7 @@ impl Error {
             Self::Auth { response, .. }
             | Self::NotFound { response, .. }
             | Self::Validation { response, .. }
+            | Self::ExternalLink { response, .. }
             | Self::RateLimit { response, .. }
             | Self::Api { response, .. } => response.as_ref(),
             Self::Timeout { .. } | Self::Transport(_) | Self::Decode(_) | Self::Build(_) => None,
@@ -254,6 +269,11 @@ mod tests {
         assert!(!Error::Api {
             status: 418,
             message: "x".into(),
+            response: None
+        }
+        .is_retryable());
+        assert!(!Error::ExternalLink {
+            url: "https://example.test/doc".into(),
             response: None
         }
         .is_retryable());

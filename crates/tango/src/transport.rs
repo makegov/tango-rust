@@ -131,21 +131,39 @@ pub(crate) async fn send_with_retries(
     url: reqwest::Url,
     body: Body<'_>,
 ) -> Result<Vec<u8>> {
-    let max_attempts = inner.retries.saturating_add(1);
-    let mut attempt: u32 = 0;
-
     // Pre-serialize the JSON body once; we re-use the bytes across attempts.
     let body_bytes = match body {
         Body::None => None,
         Body::Json(v) => Some(serde_json::to_vec(v)?),
     };
+    retry(inner, || {
+        attempt_once(inner, method.clone(), url.clone(), body_bytes.as_deref())
+    })
+    .await
+}
+
+/// GET `url` on the no-redirect client and return the resolved `Location` of
+/// its 3xx response, under the same retry policy as every other request.
+pub(crate) async fn redirect_location_with_retries(
+    inner: &crate::client::ClientInner,
+    url: reqwest::Url,
+) -> Result<String> {
+    retry(inner, || attempt_redirect(inner, url.clone())).await
+}
+
+async fn retry<T, F, Fut>(inner: &crate::client::ClientInner, mut op: F) -> Result<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let max_attempts = inner.retries.saturating_add(1);
+    let mut attempt: u32 = 0;
 
     loop {
-        let err =
-            match attempt_once(inner, method.clone(), url.clone(), body_bytes.as_deref()).await {
-                Ok(bytes) => return Ok(bytes),
-                Err(e) => e,
-            };
+        let err = match op().await {
+            Ok(v) => return Ok(v),
+            Err(e) => e,
+        };
 
         if !err.is_retryable() || attempt + 1 >= max_attempts {
             return Err(err);
@@ -172,13 +190,14 @@ fn backoff_for(base: Duration, attempt: u32) -> Duration {
     base.saturating_mul(mult).min(MAX_BACKOFF)
 }
 
-async fn attempt_once(
+fn build_request(
     inner: &crate::client::ClientInner,
+    http: &reqwest::Client,
     method: Method,
     url: reqwest::Url,
     body_bytes: Option<&[u8]>,
-) -> Result<Vec<u8>> {
-    let mut req: RequestBuilder = inner.http.request(method, url);
+) -> RequestBuilder {
+    let mut req: RequestBuilder = http.request(method, url);
     req = req.header(reqwest::header::ACCEPT, "application/json");
     if !inner.api_key.is_empty() {
         req = req.header(API_KEY_HEADER, &inner.api_key);
@@ -194,9 +213,16 @@ async fn attempt_once(
     if !inner.timeout.is_zero() {
         req = req.timeout(inner.timeout);
     }
+    req
+}
 
-    let resp_result = req.send().await;
-    let resp: Response = match resp_result {
+/// Send `req` and return its status, headers and body, recording the headers
+/// for [`Client::rate_limit_info`](crate::Client::rate_limit_info).
+async fn send_raw(
+    inner: &crate::client::ClientInner,
+    req: RequestBuilder,
+) -> Result<(StatusCode, HeaderMap, Vec<u8>)> {
+    let resp: Response = match req.send().await {
         Ok(r) => r,
         Err(e) => {
             if e.is_timeout() {
@@ -217,11 +243,54 @@ async fn attempt_once(
         Ok(b) => b.to_vec(),
         Err(e) => return Err(Error::Transport(e)),
     };
+    Ok((status, headers, bytes))
+}
 
+async fn attempt_once(
+    inner: &crate::client::ClientInner,
+    method: Method,
+    url: reqwest::Url,
+    body_bytes: Option<&[u8]>,
+) -> Result<Vec<u8>> {
+    let req = build_request(inner, &inner.http, method, url, body_bytes);
+    let (status, headers, bytes) = send_raw(inner, req).await?;
     if status.is_success() {
         return Ok(bytes);
     }
+    Err(decode_error(status, &headers, &bytes))
+}
 
+async fn attempt_redirect(inner: &crate::client::ClientInner, url: reqwest::Url) -> Result<String> {
+    let req = build_request(
+        inner,
+        &inner.http_no_redirect,
+        Method::GET,
+        url.clone(),
+        None,
+    );
+    let (status, headers, bytes) = send_raw(inner, req).await?;
+    if status.is_redirection() {
+        let location = headers
+            .get(reqwest::header::LOCATION)
+            .and_then(|v| v.to_str().ok())
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| Error::Api {
+                status: status.as_u16(),
+                message: "redirect response carried no Location header".into(),
+                response: None,
+            })?;
+        return url
+            .join(location)
+            .map(String::from)
+            .map_err(|e| Error::Build(format!("parse redirect location {location}: {e}")));
+    }
+    if status.is_success() {
+        return Err(Error::Api {
+            status: status.as_u16(),
+            message: format!("expected a redirect, got status {}", status.as_u16()),
+            response: None,
+        });
+    }
     Err(decode_error(status, &headers, &bytes))
 }
 

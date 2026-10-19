@@ -24,6 +24,7 @@ tango-rust/                           (workspace root)
 │   │       ├── version.rs            # VERSION const
 │   │       ├── models/               # Typed input/output structs
 │   │       │   ├── agency.rs
+│   │       │   ├── ebuy.rs
 │   │       │   ├── protest.rs
 │   │       │   ├── resolve.rs
 │   │       │   ├── validate.rs
@@ -42,6 +43,7 @@ tango-rust/                           (workspace root)
 │   │           ├── subawards.rs
 │   │           ├── gsa.rs
 │   │           ├── protests.rs
+│   │           ├── ebuy.rs            # GSA eBuy requests + attachment URL + access
 │   │           ├── itdashboard.rs
 │   │           ├── lcats.rs           # dispatcher (entity vs IDV)
 │   │           ├── lookups.rs        # organizations, NAICS, PSC, business types,
@@ -79,6 +81,7 @@ A small hand-picked set of methods return typed structs where the sibling SDKs a
 | ------ | ----------- |
 | `get_agency` | `AgencyRecord` |
 | `get_protest` | `ProtestRecord` |
+| `get_ebuy_access` | `EbuyAccess` |
 | `resolve` | `ResolveResult` (with `Vec<ResolveCandidate>`) |
 | `validate` | `ValidateResult` |
 | `list_webhook_endpoints` / `get_*` / `create_*` / `update_*` | `Page<WebhookEndpoint>` / `WebhookEndpoint` |
