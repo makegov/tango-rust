@@ -131,6 +131,18 @@ pub(crate) async fn send_with_retries(
     url: reqwest::Url,
     body: Body<'_>,
 ) -> Result<Vec<u8>> {
+    send_with_retries_and_headers(inner, method, url, body)
+        .await
+        .map(|(bytes, _)| bytes)
+}
+
+/// Like [`send_with_retries`], but also return the successful response's headers.
+pub(crate) async fn send_with_retries_and_headers(
+    inner: &crate::client::ClientInner,
+    method: Method,
+    url: reqwest::Url,
+    body: Body<'_>,
+) -> Result<(Vec<u8>, HeaderMap)> {
     // Pre-serialize the JSON body once; we re-use the bytes across attempts.
     let body_bytes = match body {
         Body::None => None,
@@ -251,11 +263,11 @@ async fn attempt_once(
     method: Method,
     url: reqwest::Url,
     body_bytes: Option<&[u8]>,
-) -> Result<Vec<u8>> {
+) -> Result<(Vec<u8>, HeaderMap)> {
     let req = build_request(inner, &inner.http, method, url, body_bytes);
     let (status, headers, bytes) = send_raw(inner, req).await?;
     if status.is_success() {
-        return Ok(bytes);
+        return Ok((bytes, headers));
     }
     Err(decode_error(status, &headers, &bytes))
 }

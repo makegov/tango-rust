@@ -32,7 +32,10 @@ use std::task::{Context, Poll};
 /// `next`/`previous` are the server-supplied URLs to the adjacent pages;
 /// `cursor` is the keyset cursor extracted from `next` for convenience (empty
 /// on offset-paginated endpoints).
+///
+/// The struct is `#[non_exhaustive]`: the SDK builds pages, callers read them.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct Page<T> {
     /// Total number of items across all pages, when the server reports it.
     /// For some endpoints this matches `results.len()`.
@@ -41,6 +44,16 @@ pub struct Page<T> {
     pub next: Option<String>,
     /// URL of the previous page, or `None` when on the first page.
     pub previous: Option<String>,
+    /// `"exact"` or `"approximate"`, from the response's `X-Results-CountType` header; `None` when the endpoint does not send it.
+    ///
+    /// Past 1,000 matches the contract, IDV, opportunity and notice lists may report a query-planner estimate as [`count`](Self::count), which can be well off; this says which one you got.
+    /// It is read from this page's own response, so concurrent calls on one client never see each other's value the way [`Client::last_response_headers`](crate::Client::last_response_headers) can.
+    pub count_type: Option<String>,
+    /// The response's `meta` object, passed through as the API sends it: agency-filter diagnostics (`resolved_filters`, `agency_warnings`, `unresolved_agency_tokens`, `resolved_agencies`), `upgrade_hints` and the like.
+    ///
+    /// Each entry of `meta["resolved_filters"][<filter name>]` that resolved says how its token matched in `matched_by` (Tango API 5.9.0+): `key` (an organization UUID), `code` (a 3-digit CGAC or 4-digit FPDS code), `name` (the organization's name, including a department's everyday name, a spelling variant or a rename), `alias` (an abbreviation or the organization's own alias) or `fuzzy` (a looser text match, worth checking against the resolved name).
+    /// An entry that did not resolve has no `matched_by`.
+    pub meta: Option<serde_json::Value>,
     /// Opaque page metadata for keyset endpoints.
     pub page_metadata: Option<serde_json::Value>,
     /// Cursor extracted from `next` on cursor-paginated endpoints. Pass it
@@ -59,6 +72,8 @@ struct RawPage<T> {
     next: Option<String>,
     #[serde(default)]
     previous: Option<String>,
+    #[serde(default)]
+    meta: Option<serde_json::Value>,
     #[serde(default)]
     page_metadata: Option<serde_json::Value>,
     #[serde(default = "Vec::new")]
@@ -82,6 +97,8 @@ impl<T> Page<T> {
             count,
             next: raw.next.filter(|s| !s.is_empty()),
             previous: raw.previous.filter(|s| !s.is_empty()),
+            count_type: None,
+            meta: raw.meta.filter(|m| !m.is_null()),
             page_metadata: raw.page_metadata,
             cursor,
             results: raw.results,
@@ -91,7 +108,28 @@ impl<T> Page<T> {
         }
         Ok(out)
     }
+
+    /// Decode a list response body and read [`count_type`](Self::count_type) from its headers.
+    pub(crate) fn decode_response(
+        bytes: &[u8],
+        headers: &reqwest::header::HeaderMap,
+    ) -> Result<Self>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let mut page = Self::decode(bytes)?;
+        page.count_type = headers
+            .get(COUNT_TYPE_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+            .map(str::to_ascii_lowercase);
+        Ok(page)
+    }
 }
+
+/// Response header that says whether a list's `count` is exact or a query-planner estimate.
+const COUNT_TYPE_HEADER: &str = "x-results-counttype";
 
 fn extract_cursor(url: &str) -> Option<String> {
     let parsed = reqwest::Url::parse(url).ok()?;
@@ -311,6 +349,38 @@ mod tests {
         let body = br#"{"results": [{"a": 1}, {"a": 2}, {"a": 3}]}"#;
         let page: Page<serde_json::Value> = Page::decode(body).expect("decode");
         assert_eq!(page.count, 3);
+    }
+
+    #[test]
+    fn decode_passes_meta_through() {
+        let body = br#"{
+            "count": 1,
+            "results": [{"a": 1}],
+            "meta": {"resolved_filters": {"agency": [{"token": "dod", "matched_by": "alias"}]}}
+        }"#;
+        let page: Page<serde_json::Value> = Page::decode(body).expect("decode");
+        let meta = page.meta.expect("meta");
+        assert_eq!(
+            meta["resolved_filters"]["agency"][0]["matched_by"],
+            serde_json::json!("alias")
+        );
+        assert!(page.count_type.is_none());
+    }
+
+    #[test]
+    fn decode_response_reads_count_type_header() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert("X-Results-CountType", "Approximate".parse().unwrap());
+        let page: Page<serde_json::Value> =
+            Page::decode_response(br#"{"count": 10000, "results": []}"#, &headers).expect("decode");
+        assert_eq!(page.count_type.as_deref(), Some("approximate"));
+        let page: Page<serde_json::Value> = Page::decode_response(
+            br#"{"count": 1, "results": []}"#,
+            &reqwest::header::HeaderMap::new(),
+        )
+        .expect("decode");
+        assert!(page.count_type.is_none());
+        assert!(page.meta.is_none());
     }
 
     #[test]

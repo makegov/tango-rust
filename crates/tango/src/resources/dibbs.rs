@@ -428,8 +428,7 @@ impl Client {
     /// `GET /api/dibbs/rfqs/` — one page of DIBBS request-for-quote line records.
     pub async fn list_dibbs_rfqs(&self, opts: ListDibbsRfqsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/dibbs/rfqs/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/dibbs/rfqs/", &q).await
     }
 
     /// `GET /api/dibbs/rfqs/{uuid}/` — a single DIBBS request-for-quote line.
@@ -460,8 +459,7 @@ impl Client {
     /// `GET /api/dibbs/rfps/` — one page of DIBBS request-for-proposal records.
     pub async fn list_dibbs_rfps(&self, opts: ListDibbsRfpsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/dibbs/rfps/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/dibbs/rfps/", &q).await
     }
 
     /// `GET /api/dibbs/rfps/{uuid}/` — a single DIBBS request-for-proposal.
@@ -492,8 +490,7 @@ impl Client {
     /// `GET /api/dibbs/awards/` — one page of DIBBS award line item records.
     pub async fn list_dibbs_awards(&self, opts: ListDibbsAwardsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/dibbs/awards/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/dibbs/awards/", &q).await
     }
 
     /// `GET /api/dibbs/awards/{uuid}/` — a single DIBBS award line item.

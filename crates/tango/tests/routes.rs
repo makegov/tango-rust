@@ -633,3 +633,48 @@ async fn ebuy_attachment_url_maps_uncaptured_document_to_not_found() {
         .unwrap_err();
     assert!(matches!(err, Error::NotFound { .. }), "{err:?}");
 }
+
+#[tokio::test]
+async fn list_pages_carry_their_own_count_type_and_meta() {
+    let server = MockServer::start_async().await;
+    let contracts = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/contracts/");
+            then.status(200)
+                .header("X-Results-CountType", "approximate")
+                .json_body(json!({
+                    "count": 125_000,
+                    "next": null,
+                    "previous": null,
+                    "results": [{"key": "K1"}],
+                    "meta": {"resolved_filters": {"awarding_agency": [
+                        {"token": "DOD", "matched_by": "alias"},
+                        {"token": "nope"}
+                    ]}}
+                }));
+        })
+        .await;
+    let naics = server
+        .mock_async(|when, then| {
+            when.method(GET).path("/api/naics/");
+            then.status(200)
+                .header("X-Results-CountType", "exact")
+                .json_body(page(json!([{"code": "541512"}])));
+        })
+        .await;
+    let c = make_client(&server);
+    let (p_contracts, p_naics) = tokio::join!(
+        c.list_contracts(tango::ListContractsOptions::builder().build()),
+        c.list_naics(tango::ListNaicsOptions::builder().build()),
+    );
+    let p_contracts = p_contracts.expect("contracts");
+    let p_naics = p_naics.expect("naics");
+    contracts.assert_async().await;
+    naics.assert_async().await;
+    assert_eq!(p_contracts.count_type.as_deref(), Some("approximate"));
+    assert_eq!(p_naics.count_type.as_deref(), Some("exact"));
+    let resolved = &p_contracts.meta.as_ref().expect("meta")["resolved_filters"]["awarding_agency"];
+    assert_eq!(resolved[0]["matched_by"], json!("alias"));
+    assert!(resolved[1].get("matched_by").is_none());
+    assert!(p_naics.meta.is_none());
+}

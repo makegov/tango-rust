@@ -280,8 +280,7 @@ impl Client {
     /// `GET /api/sbir/topics/` — one page of SBIR/STTR topic records.
     pub async fn list_sbir_topics(&self, opts: ListSbirTopicsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sbir/topics/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sbir/topics/", &q).await
     }
 
     /// `GET /api/sbir/topics/{topic_id}/` — a single SBIR/STTR topic.
@@ -319,8 +318,7 @@ impl Client {
         opts: ListSbirSolicitationsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sbir/solicitations/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sbir/solicitations/", &q).await
     }
 
     /// `GET /api/sbir/solicitations/{solicitation_id}/` — a single DoD DSIP solicitation cycle.

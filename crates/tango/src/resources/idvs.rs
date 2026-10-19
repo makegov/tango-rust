@@ -224,8 +224,7 @@ impl Client {
     /// `GET /api/idvs/` — one page of Indefinite Delivery Vehicle records.
     pub async fn list_idvs(&self, opts: ListIDVsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/idvs/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/idvs/", &q).await
     }
 
     /// `GET /api/idvs/{key}/` — fetch a single IDV by key.

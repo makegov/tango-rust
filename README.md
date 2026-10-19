@@ -154,6 +154,34 @@ let next_page = client.list_idvs(
 # Ok(()) }
 ```
 
+`page.count` is the total across every page. Past 1,000 matches the contract, IDV, opportunity and notice lists may report a query-planner estimate there instead of an exact count, and `page.count_type` says which you got: `Some("exact")`, `Some("approximate")`, or `None` when the endpoint does not say. It is read from that page's own response, so concurrent calls on one client never see each other's value.
+
+`page.meta` is the response's `meta` object as the API sends it. On a list filtered by agency it carries the filter diagnostics: each entry of `meta["resolved_filters"][<filter name>]` that resolved says how its token matched in `matched_by` (Tango API 5.9.0+): `key`, `code`, `name`, `alias` or `fuzzy`. A `fuzzy` match is worth checking against the resolved name.
+
+```rust,no_run
+# use tango::{Client, ListContractsOptions};
+# async fn run() -> tango::Result<()> {
+# let client = Client::builder().api_key("x").build()?;
+let page = client
+    .list_contracts(ListContractsOptions::builder().awarding_agency("Navy").build())
+    .await?;
+if page.count_type.as_deref() == Some("approximate") {
+    println!("about {} matches", page.count);
+}
+if let Some(entries) = page
+    .meta
+    .as_ref()
+    .and_then(|m| m["resolved_filters"]["awarding_agency"].as_array())
+{
+    for entry in entries {
+        if entry["matched_by"] == "fuzzy" {
+            println!("check this match: {entry}");
+        }
+    }
+}
+# Ok(()) }
+```
+
 Or just iterate via `PageStream<T>`:
 
 ```rust,no_run

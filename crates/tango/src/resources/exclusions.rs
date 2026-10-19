@@ -210,8 +210,7 @@ impl Client {
     /// `GET /api/exclusions/` — one page of exclusion records.
     pub async fn list_exclusions(&self, opts: ListExclusionsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/exclusions/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/exclusions/", &q).await
     }
 
     /// `GET /api/exclusions/{exclusion_key}/` — a single exclusion.

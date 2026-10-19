@@ -239,8 +239,7 @@ impl Client {
         opts: ListBudgetAccountsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/budget/accounts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/budget/accounts/", &q).await
     }
 
     /// Stream every budget-account rollup matching `opts`.
@@ -286,8 +285,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/quarters/", urlencoding(id));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/budget/accounts/{id}/recipients/` — funding-office x recipient contract flows for a single account-year, largest `contract_obligated` first.
@@ -307,8 +305,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/budget/accounts/{}/recipients/", urlencoding(id));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 }
 

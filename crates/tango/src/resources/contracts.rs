@@ -260,8 +260,7 @@ impl Client {
     /// `GET /api/contracts/` — one page of federal contract records.
     pub async fn list_contracts(&self, opts: ListContractsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/contracts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/contracts/", &q).await
     }
 
     /// `GET /api/contracts/{key}/` — a single federal contract record.
@@ -293,8 +292,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/contracts/{}/subawards/", urlencoding(key));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/contracts/{key}/transactions/` — raw transaction history
@@ -312,8 +310,7 @@ impl Client {
         }
         let q = opts.unwrap_or_default().to_query();
         let path = format!("/api/contracts/{}/transactions/", urlencoding(key));
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// Stream every federal contract record matching `opts`. The stream follows

@@ -167,8 +167,7 @@ async fn list_vehicle_awardees_inner(
     }
     let q = opts.to_query();
     let path = format!("/api/vehicles/{}/awardees/", urlencoding(uuid));
-    let bytes = client.get_bytes(&path, &q).await?;
-    Page::decode(&bytes)
+    client.get_page(&path, &q).await
 }
 
 async fn list_vehicle_orders_inner(
@@ -184,8 +183,7 @@ async fn list_vehicle_orders_inner(
     }
     let q = opts.to_query();
     let path = format!("/api/vehicles/{}/orders/", urlencoding(uuid));
-    let bytes = client.get_bytes(&path, &q).await?;
-    Page::decode(&bytes)
+    client.get_page(&path, &q).await
 }
 
 #[cfg(test)]

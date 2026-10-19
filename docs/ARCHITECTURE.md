@@ -150,10 +150,13 @@ Validation-message extraction (`extract_validation_message`) walks the parsed bo
 `Page<T>` is the decoded envelope returned by `list_*` methods:
 
 ```rust
+#[non_exhaustive]
 pub struct Page<T> {
     pub count: u64,
     pub next: Option<String>,
     pub previous: Option<String>,
+    pub count_type: Option<String>,  // from this response's X-Results-CountType header
+    pub meta: Option<Value>,         // the response's `meta`, passed through
     pub page_metadata: Option<Value>,
     pub cursor: Option<String>,  // extracted from `next` for keyset endpoints
     pub results: Vec<T>,

@@ -581,8 +581,7 @@ impl Client {
     /// `GET /api/opportunities/` — one page of opportunity records.
     pub async fn list_opportunities(&self, opts: ListOpportunitiesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/opportunities/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/opportunities/", &q).await
     }
 
     /// Stream every opportunity matching `opts`.
@@ -600,8 +599,7 @@ impl Client {
     /// `GET /api/notices/` — one page of notice records.
     pub async fn list_notices(&self, opts: ListNoticesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/notices/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/notices/", &q).await
     }
 
     /// Stream every notice matching `opts`.
@@ -619,8 +617,7 @@ impl Client {
     /// `GET /api/forecasts/` — one page of forecast records.
     pub async fn list_forecasts(&self, opts: ListForecastsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/forecasts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/forecasts/", &q).await
     }
 
     /// Stream every forecast matching `opts`.
@@ -638,8 +635,7 @@ impl Client {
     /// `GET /api/grants/` — one page of grant records.
     pub async fn list_grants(&self, opts: ListGrantsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/grants/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/grants/", &q).await
     }
 
     /// Stream every grant matching `opts`.

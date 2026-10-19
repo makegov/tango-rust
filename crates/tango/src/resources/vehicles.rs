@@ -218,8 +218,7 @@ impl Client {
     /// `GET /api/vehicles/` — one page of contracting-vehicle records.
     pub async fn list_vehicles(&self, opts: ListVehiclesOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/vehicles/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/vehicles/", &q).await
     }
 
     /// `GET /api/vehicles/{uuid}/` — fetch a single contracting vehicle.

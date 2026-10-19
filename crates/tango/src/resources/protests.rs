@@ -174,8 +174,7 @@ impl Client {
     /// `GET /api/protests/` — one page of bid-protest records.
     pub async fn list_protests(&self, opts: ListProtestsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/protests/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/protests/", &q).await
     }
 
     /// `GET /api/protests/{case_id}/` — fetch a single protest by case ID.

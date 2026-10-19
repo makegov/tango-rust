@@ -517,8 +517,7 @@ impl Client {
         opts: ListSledOpportunitiesOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sled/opportunities/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sled/opportunities/", &q).await
     }
 
     /// `GET /api/sled/opportunities/{opportunity_id}/` — one solicitation,
@@ -582,8 +581,7 @@ impl Client {
             "/api/sled/opportunities/{}/revisions/",
             urlencoding(opportunity_id)
         );
-        let bytes = self.get_bytes(&path, &q).await?;
-        Page::decode(&bytes)
+        self.get_page(&path, &q).await
     }
 
     /// `GET /api/sled/opportunities/coverage/` — the per-state coverage rollup.
@@ -607,8 +605,7 @@ impl Client {
         opts: ListSledForecastsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/sled/forecasts/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/sled/forecasts/", &q).await
     }
 
     /// `GET /api/sled/forecasts/{forecast_id}/` — one forecast.

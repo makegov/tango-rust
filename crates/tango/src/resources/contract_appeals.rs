@@ -163,8 +163,7 @@ impl Client {
         opts: ListContractAppealsOptions,
     ) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/contract_appeals/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/contract_appeals/", &q).await
     }
 
     /// `GET /api/contract_appeals/{uuid}/` — fetch a single decision by UUID.

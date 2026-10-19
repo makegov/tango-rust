@@ -163,8 +163,7 @@ impl Client {
     /// `GET /api/itdashboard/` — one page of federal IT investments.
     pub async fn list_itdashboard(&self, opts: ListItdashboardOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/itdashboard/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/itdashboard/", &q).await
     }
 
     /// `GET /api/itdashboard/{uii}/` — fetch a single investment

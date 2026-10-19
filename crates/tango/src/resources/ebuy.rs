@@ -179,8 +179,7 @@ impl Client {
     /// Requires the Pro plan (below it the API returns 403). With no linked schedule contract the page is empty rather than an error; call [`get_ebuy_access`](Self::get_ebuy_access) to tell the two apart.
     pub async fn list_ebuy_requests(&self, opts: ListEbuyRequestsOptions) -> Result<Page<Record>> {
         let q = opts.to_query();
-        let bytes = self.get_bytes("/api/ebuy/requests/", &q).await?;
-        Page::decode(&bytes)
+        self.get_page("/api/ebuy/requests/", &q).await
     }
 
     /// `GET /api/ebuy/requests/{rfq_id}/` — one eBuy request.
