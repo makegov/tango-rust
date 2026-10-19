@@ -34,7 +34,7 @@ A typical setup:
 
 ```toml
 [dependencies]
-makegov-tango-webhooks = "0.1"
+makegov-tango-webhooks = "0.3"
 ```
 
 The crate publishes as `makegov-tango-webhooks` on crates.io and imports as `use tango_webhooks::...` thanks to a `[lib] name` shim.
