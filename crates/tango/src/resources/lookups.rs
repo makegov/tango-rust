@@ -220,6 +220,8 @@ pub struct ListPscOptions {
     /// Free-text search filter.
     #[builder(into)]
     pub search: Option<String>,
+    /// `Some(true)` returns only codes with contract award history. `Some(false)` is the same as unset: the server applies no filter.
+    pub has_awards: Option<bool>,
 
     /// Escape hatch for filter keys not first-classed here.
     #[builder(default)]
@@ -239,6 +241,7 @@ impl ListPscOptions {
             self.flat_lists,
         );
         push_opt(&mut q, "search", self.search.as_deref());
+        push_opt_bool(&mut q, "has_awards", self.has_awards);
         for (k, v) in &self.extra {
             if !v.is_empty() {
                 q.push((k.clone(), v.clone()));
@@ -830,6 +833,16 @@ mod tests {
 
     fn get_q(q: &[(String, String)], k: &str) -> Option<String> {
         q.iter().find(|(kk, _)| kk == k).map(|(_, v)| v.clone())
+    }
+
+    #[test]
+    fn psc_has_awards_emits() {
+        let q = ListPscOptions::builder()
+            .has_awards(true)
+            .build()
+            .to_query();
+        assert_eq!(get_q(&q, "has_awards").as_deref(), Some("true"));
+        assert!(ListPscOptions::builder().build().to_query().is_empty());
     }
 
     // ----- Organizations -----

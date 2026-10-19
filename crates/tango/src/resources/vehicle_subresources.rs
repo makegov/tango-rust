@@ -4,7 +4,7 @@
 
 use crate::client::Client;
 use crate::error::{Error, Result};
-use crate::internal::apply_pagination;
+use crate::internal::{apply_pagination, push_opt};
 use crate::pagination::{FetchFn, Page, PageStream};
 use crate::resources::agencies::urlencoding;
 use crate::Record;
@@ -12,8 +12,7 @@ use bon::Builder;
 use std::sync::Arc;
 
 /// Options for [`Client::list_vehicle_awardees`] and
-/// [`Client::iterate_vehicle_awardees`]. The endpoint only accepts the
-/// shared pagination + shaping fields.
+/// [`Client::iterate_vehicle_awardees`].
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ListVehicleAwardeesOptions {
@@ -36,6 +35,9 @@ pub struct ListVehicleAwardeesOptions {
     /// When [`flat`](Self::flat) is also true, flatten list-valued fields.
     #[builder(default)]
     pub flat_lists: bool,
+    /// Entity-aware full-text search across the awardees' IDV fields.
+    #[builder(into)]
+    pub search: Option<String>,
 }
 
 impl ListVehicleAwardeesOptions {
@@ -50,13 +52,13 @@ impl ListVehicleAwardeesOptions {
             self.flat,
             self.flat_lists,
         );
+        push_opt(&mut q, "search", self.search.as_deref());
         q
     }
 }
 
 /// Options for [`Client::list_vehicle_orders`] and
-/// [`Client::iterate_vehicle_orders`]. The endpoint only accepts the
-/// shared pagination + shaping fields.
+/// [`Client::iterate_vehicle_orders`].
 #[derive(Debug, Clone, Default, Builder, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct ListVehicleOrdersOptions {
@@ -78,6 +80,9 @@ pub struct ListVehicleOrdersOptions {
     /// When [`flat`](Self::flat) is also true, flatten list-valued fields.
     #[builder(default)]
     pub flat_lists: bool,
+    /// Server-side sort: `award_date` (the default, as `-award_date`), `obligated` or `total_contract_value`, prefixed with `-` for descending.
+    #[builder(into)]
+    pub ordering: Option<String>,
 }
 
 impl ListVehicleOrdersOptions {
@@ -92,6 +97,7 @@ impl ListVehicleOrdersOptions {
             self.flat,
             self.flat_lists,
         );
+        push_opt(&mut q, "ordering", self.ordering.as_deref());
         q
     }
 }
@@ -201,6 +207,20 @@ mod tests {
         assert!(q.contains(&("page".into(), "2".into())));
         assert!(q.contains(&("limit".into(), "25".into())));
         assert!(q.contains(&("shape".into(), "vehicle_awardees(minimal)".into())));
+    }
+
+    #[test]
+    fn awardees_search_and_orders_ordering_emit() {
+        let q = ListVehicleAwardeesOptions::builder()
+            .search("cyber")
+            .build()
+            .to_query();
+        assert!(q.contains(&("search".into(), "cyber".into())));
+        let q = ListVehicleOrdersOptions::builder()
+            .ordering("-obligated")
+            .build()
+            .to_query();
+        assert!(q.contains(&("ordering".into(), "-obligated".into())));
     }
 
     #[test]
