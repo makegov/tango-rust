@@ -7,11 +7,17 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-10-19
+
 ### `makegov-tango`
 
 #### Fixed
 
 - **`Error::RateLimit`'s `limit_type` now says which limit a 429 hit.** It was read only from an `X-RateLimit-Type` header the Tango API does not send, so it was always `None`. It is now `"daily"` or `"burst"`, read from the rate the API names in the 429's `detail` (`Rate limit exceeded for daily. Please try again in 16 hours, 58 minutes.`), so a daily lockout that lasts until midnight UTC can be told apart from a burst limit that clears in seconds. Only the rate's name is read, never the wait, and a premium endpoint's daily budget reports as `"daily"`. An `X-RateLimit-Type` header still wins if the server sends one, and the value is `None` when the response names no limit.
+
+### `makegov-tango-webhooks`
+
+No changes; the version moves to 0.3.1 in lockstep with `makegov-tango`.
 
 ## [0.3.0] — 2026-10-19
 
