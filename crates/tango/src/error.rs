@@ -82,15 +82,13 @@ pub enum Error {
 
     /// HTTP 429 — the caller exceeded a rate limit.
     ///
-    /// `retry_after` is populated from the `Retry-After` header when present
-    /// (in seconds, capped at 10s by the retry loop). `limit_type` is
-    /// populated from `X-RateLimit-Type` when the server sets it
-    /// (e.g. `"minute"`, `"hour"`, `"day"`).
+    /// `retry_after` is populated from the `Retry-After` header when present (in seconds, capped at 10s by the retry loop).
+    /// `limit_type` is `"daily"` or `"burst"`, read from the rate the API names in the body's `detail`; an `X-RateLimit-Type` header takes precedence when the server sets one, and it is `None` when neither names a limit.
     #[error("tango: rate limit exceeded (status 429); retry after {retry_after}s")]
     RateLimit {
         /// Seconds to wait before retrying, as suggested by the server.
         retry_after: u32,
-        /// The rate-limit bucket the server reported, when present.
+        /// Which limit was hit (`"daily"` or `"burst"`), when the response says.
         limit_type: Option<String>,
         /// The parsed error body, when one was returned.
         response: Option<ErrorBody>,
