@@ -741,3 +741,48 @@ async fn federal_register_routes() {
         Some("Air Plan Approval")
     );
 }
+
+#[tokio::test]
+async fn opportunity_award_fields_and_attachment_status_pass_through() {
+    let shape = "opportunity_id,awarded,award_count,awards(notice_id,awardee_uei),meta(files_count,links_count),attachments(name,extraction_status)";
+    let server = MockServer::start_async().await;
+    let m = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/opportunities/")
+                .query_param("awarded", "true")
+                .query_param("awardee_uei", "ABCDEF123456")
+                .query_param("shape", shape);
+            then.status(200).json_body(page(json!([{
+                "opportunity_id": "o-1",
+                "awarded": true,
+                "award_count": 12,
+                "awards": [{"notice_id": "n-9", "awardee_uei": "ABCDEF123456"}],
+                "meta": {"files_count": 2, "links_count": null},
+                "attachments": [
+                    {"name": "sow.pdf", "extraction_status": "completed"},
+                    {"name": "scan.tif", "extraction_status": "unsupported"}
+                ]
+            }])));
+        })
+        .await;
+    let p = make_client(&server)
+        .list_opportunities(
+            tango::ListOpportunitiesOptions::builder()
+                .awarded(true)
+                .awardee_uei("ABCDEF123456")
+                .shape(shape)
+                .build(),
+        )
+        .await
+        .expect("list");
+    m.assert_async().await;
+    let row = &p.results[0];
+    assert_eq!(row["awards"].as_array().map(Vec::len), Some(1));
+    assert_eq!(row["meta"]["files_count"], json!(2));
+    assert!(row["meta"]["links_count"].is_null());
+    assert_eq!(
+        row["attachments"][1]["extraction_status"],
+        json!("unsupported")
+    );
+}
