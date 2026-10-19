@@ -312,7 +312,7 @@ fn decode_error(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> Error {
     } else {
         serde_json::from_slice(body).ok()
     };
-    let body_message = parsed_value.as_ref().and_then(extract_top_level_message);
+    let body_message = parsed_value.as_ref().and_then(extract_reason);
     let response = parsed_value.as_ref().map(|v| ErrorBody {
         message: body_message.clone().unwrap_or_default(),
         raw: Some(v.clone()),
@@ -344,16 +344,23 @@ fn decode_error(status: StatusCode, headers: &HeaderMap, body: &[u8]) -> Error {
     }
 }
 
-fn extract_top_level_message(v: &Value) -> Option<String> {
+/// The server's own explanation from an error body, e.g. why a 403 refused the request.
+///
+/// The API sends either `{"detail": "..."}` or a structured body such as a tier gate's `{"error": "...", "code": "tier_required", ...}`, sometimes nested under `detail`.
+fn extract_reason(v: &Value) -> Option<String> {
     let Value::Object(map) = v else { return None };
-    for key in ["detail", "message", "error"] {
-        if let Some(Value::String(s)) = map.get(key) {
-            if !s.is_empty() {
-                return Some(s.clone());
-            }
-        }
-    }
-    None
+    let envelope_reason = |map: &serde_json::Map<String, Value>| {
+        ["error", "message", "detail"]
+            .iter()
+            .find_map(|key| match map.get(*key) {
+                Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
+                _ => None,
+            })
+    };
+    envelope_reason(map).or_else(|| match map.get("detail") {
+        Some(Value::Object(nested)) => envelope_reason(nested),
+        _ => None,
+    })
 }
 
 /// Decode a JSON byte slice into a typed `T`, wrapping decode errors so they
@@ -442,6 +449,72 @@ mod tests {
             extract_validation_message(Some(&body)),
             "invalid request parameters: must be present"
         );
+    }
+
+    fn api_error(status: u16, body: &[u8]) -> (u16, String, Option<ErrorBody>, String) {
+        let err = decode_error(
+            StatusCode::from_u16(status).unwrap(),
+            &HeaderMap::new(),
+            body,
+        );
+        let display = err.to_string();
+        match err {
+            Error::Api {
+                status,
+                message,
+                response,
+            } => (status, message, response, display),
+            other => panic!("expected Error::Api, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn api_error_carries_the_server_reason() {
+        let body = json!({"detail": "These shape fields are not allowed for your account."});
+        let (status, message, response, display) = api_error(403, body.to_string().as_bytes());
+        assert_eq!(status, 403);
+        assert_eq!(
+            message,
+            "These shape fields are not allowed for your account."
+        );
+        assert_eq!(
+            display,
+            "tango: API error (status 403): These shape fields are not allowed for your account."
+        );
+        let response = response.unwrap();
+        assert_eq!(response.message, message);
+        assert_eq!(response.raw, Some(body));
+    }
+
+    #[test]
+    fn api_error_tier_gate_reason_flat_or_nested() {
+        let reason = "The 'psc' filter requires a Small plan or higher.";
+        for body in [
+            json!({"error": reason, "code": "tier_required"}),
+            json!({"detail": {"error": reason, "code": "tier_required"}}),
+        ] {
+            let (_, message, response, _) = api_error(403, body.to_string().as_bytes());
+            assert_eq!(message, reason, "body: {body}");
+            assert_eq!(response.unwrap().raw, Some(body));
+        }
+    }
+
+    #[test]
+    fn api_error_json_body_without_a_reason_keeps_the_body() {
+        let body = json!({"code": "forbidden"});
+        let (_, message, response, _) = api_error(403, body.to_string().as_bytes());
+        assert_eq!(message, "API request failed with status 403");
+        let response = response.unwrap();
+        assert_eq!(response.message, "");
+        assert_eq!(response.raw, Some(body));
+    }
+
+    #[test]
+    fn api_error_non_json_body_keeps_the_bare_message() {
+        let (status, message, response, _) = api_error(502, b"<html>Bad Gateway</html>");
+        assert_eq!(status, 502);
+        assert_eq!(message, "API request failed with status 502");
+        assert_eq!(response, None);
     }
 
     #[test]

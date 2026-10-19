@@ -59,6 +59,7 @@ Pre-1.0 (SemVer 0.x): the change under **Breaking** ships without a deprecation 
 
 - **`ListItdashboardOptions` documents the API's current filter tiers.** `agency_name` is available at every plan, not Business+ only, and so are `agency` and `previous_uii`.
 - **The SBIR topic `agency` filter is documented as organization-resolved.** It rolls up the hierarchy (`HHS` includes NIH topics) and falls back to the raw agency text only for a token that does not resolve; the docs said it never resolved.
+- **API errors now carry the server's reason when it is nested under `detail`.** A 403 or other non-2xx response the SDK had no dedicated variant for kept a top-level `detail`, `message` or `error` string, but a structured body such as a plan gate's `{"detail": {"error": "...", "code": "tier_required"}}` left `Error::Api`'s `message` at `API request failed with status 403`, so a caller refused for a plan-gated filter couldn't tell why. The message is now the API's own explanation (`tango: API error (status 403): The 'psc' filter requires a Small plan or higher.`), and the parsed body stays on `response`. When a body carries several of these keys, `error` now wins over `message` and `detail`, matching the Python SDK. Non-JSON bodies, such as a proxy's 502 page, keep the old message.
 
 ## [0.2.0] — 2026-09-23
 
