@@ -261,6 +261,27 @@ pub const SHAPE_SBIR_SOLICITATIONS_MINIMAL: &str = concat!(
     "cycle_name,solicitation_status,year,start_date,end_date",
 );
 
+/// Suggested list shape for [`Client::list_federal_register_documents`](crate::Client::list_federal_register_documents).
+///
+/// Mirrors the API's default list shape. `full_text` is never on the list.
+pub const SHAPE_FEDERAL_REGISTER_MINIMAL: &str = concat!(
+    "uuid,document_number,publication_date,type,subtype,title,abstract,action,",
+    "agencies,cfr_references,citation,significant,comments_close_on,effective_on,",
+    "html_url,pdf_url",
+);
+
+/// Suggested detail shape for [`Client::get_federal_register_document`](crate::Client::get_federal_register_document).
+///
+/// Mirrors the API's default detail shape. `full_text` is left out on purpose: it can run to several MB, so name it when you want it.
+pub const SHAPE_FEDERAL_REGISTER_COMPREHENSIVE: &str = concat!(
+    "uuid,document_number,publication_date,type,subtype,title,abstract,action,",
+    "agencies,cfr_references,citation,significant,comments_close_on,effective_on,",
+    "html_url,pdf_url,dates,signing_date,start_page,end_page,volume,docket_ids,",
+    "dockets,regulation_id_numbers,topics,correction_of,corrections,",
+    "executive_order_number,presidential_document_number,proclamation_number,",
+    "comment_url,regulations_dot_gov_url,raw_text_url,body_html_url",
+);
+
 /// Suggested list shape for [`Client::list_ebuy_requests`](crate::Client::list_ebuy_requests).
 ///
 /// Mirrors the API's default list shape. `description` is detail-only; `attachment_count` says whether a detail fetch is worth it.

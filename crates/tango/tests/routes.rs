@@ -678,3 +678,66 @@ async fn list_pages_carry_their_own_count_type_and_meta() {
     assert!(resolved[1].get("matched_by").is_none());
     assert!(p_naics.meta.is_none());
 }
+
+#[tokio::test]
+async fn federal_register_routes() {
+    let server = MockServer::start_async().await;
+    let list = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/federal_register/")
+                .query_param("document_number", "2016-31922")
+                .query_param("type", "Rule")
+                .query_param("comments_open", "false");
+            then.status(200).json_body(page(json!([{
+                "uuid": "0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a",
+                "document_number": "2016-31922"
+            }])));
+        })
+        .await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/federal_register/0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a/")
+                .query_param("shape", "uuid,title,full_text");
+            then.status(200).json_body(json!({
+                "uuid": "0b6c7f0e-7e0a-4c43-9c8a-1f3f6c1d2e3a",
+                "title": "Air Plan Approval",
+                "full_text": "ENVIRONMENTAL PROTECTION AGENCY ..."
+            }));
+        })
+        .await;
+    let c = make_client(&server);
+    let p = c
+        .list_federal_register_documents(
+            tango::ListFederalRegisterDocumentsOptions::builder()
+                .document_number("2016-31922")
+                .document_type("Rule")
+                .comments_open(false)
+                .build(),
+        )
+        .await
+        .expect("list");
+    let uuid = p.results[0]
+        .get("uuid")
+        .and_then(serde_json::Value::as_str)
+        .expect("uuid")
+        .to_string();
+    let doc = c
+        .get_federal_register_document(
+            &uuid,
+            Some(
+                tango::GetFederalRegisterDocumentOptions::builder()
+                    .shape("uuid,title,full_text")
+                    .build(),
+            ),
+        )
+        .await
+        .expect("get");
+    list.assert_async().await;
+    get.assert_async().await;
+    assert_eq!(
+        doc.get("title").and_then(serde_json::Value::as_str),
+        Some("Air Plan Approval")
+    );
+}
