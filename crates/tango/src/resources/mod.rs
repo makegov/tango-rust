@@ -2,6 +2,7 @@
 //! methods on [`Client`](crate::Client) and exports its `*Options` builders.
 
 pub(crate) mod agencies;
+pub(crate) mod assistance;
 pub(crate) mod budget;
 pub(crate) mod contract_appeals;
 pub(crate) mod contracts;
@@ -33,6 +34,9 @@ pub(crate) mod webhooks_api;
 pub use agencies::{
     AgencyContractsOptions, GetAgencyOptions, ListAgenciesOptions,
     ListAgencyAwardingContractsOptions, ListAgencyFundingContractsOptions,
+};
+pub use assistance::{
+    AssistanceSubresourceOptions, GetAssistanceAwardOptions, ListAssistanceAwardsOptions,
 };
 pub use budget::{
     BudgetAccountQuartersOptions, BudgetAccountRecipientsOptions, ListBudgetAccountsOptions,

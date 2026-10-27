@@ -286,6 +286,7 @@ The SDK exposes a method on `Client` for every public endpoint the sibling SDKs 
 | Forecasts | `list_forecasts` | `get_forecast` | `iterate_forecasts` |
 | Grants | `list_grants` | `get_grant` | `iterate_grants` |
 | Protests | `list_protests` | `get_protest` *(typed: `ProtestRecord`)* | `iterate_protests` |
+| Assistance awards | `list_assistance_grants` / `_loans` / `_direct_payments` / `_other` | `get_assistance_grant` / `_loan` / `_direct_payment` / `_other` _(typed: `AssistanceAwardRecord`)_ | `iterate_assistance_*` |
 | Contract appeals | `list_contract_appeals` | `get_contract_appeal` *(typed: `ContractAppealRecord`)* | `iterate_contract_appeals` |
 | DIBBS (DLA) | `list_dibbs_rfqs` / `list_dibbs_rfps` / `list_dibbs_awards` | `get_dibbs_rfq` / `get_dibbs_rfp` / `get_dibbs_award` | `iterate_dibbs_*` |
 | GSA eBuy | `list_ebuy_requests` | `get_ebuy_request` | `iterate_ebuy_requests` |
@@ -298,7 +299,7 @@ The SDK exposes a method on `Client` for every public endpoint the sibling SDKs 
 | NAICS / PSC | `list_naics` / `list_psc` | `get_naics` / `get_psc` | — |
 | Webhooks (CRUD) | `list_webhook_endpoints` / `list_webhook_alerts` | `get_` / `create_` / `update_` / `delete_` / `test_` | — |
 
-Sub-resources and lookups: `list_contract_subawards` / `_transactions`, `list_entity_contracts` / `_idvs` / `_otas` / `_otidvs` / `_subawards` / `_lcats` / `get_entity_metrics` / `get_entity_budget_flows`, `get_budget_account_quarters` / `_recipients`, `list_sled_opportunity_revisions` / `get_sled_coverage`, `get_ebuy_attachment_url` / `get_ebuy_access`, `list_idv_awards` / `_child_idvs` / `_transactions` / `_lcats`, `list_agency_awarding_contracts` / `_funding_contracts`, `list_vehicle_awardees` / `_orders`, `list_otidv_awards`, `list_gsa_elibrary_contracts`, `list_business_types`, `list_offices`, `list_departments`, `list_mas_sins`, `list_assistance_listings`, `list_lcats` (dispatcher). Meta: `resolve`, `validate`, `get_version`, `list_api_keys`. `list_opportunities` with `search` also matches attachment text. Metrics dispatcher: `list_metrics`.
+Sub-resources and lookups: `list_contract_subawards` / `_transactions`, `list_assistance_grant_transactions` / `_listings` (and the loan, direct-payment and other equivalents), `list_entity_contracts` / `_idvs` / `_otas` / `_otidvs` / `_subawards` / `_lcats` / `get_entity_metrics` / `get_entity_budget_flows`, `get_budget_account_quarters` / `_recipients`, `list_sled_opportunity_revisions` / `get_sled_coverage`, `get_ebuy_attachment_url` / `get_ebuy_access`, `list_idv_awards` / `_child_idvs` / `_transactions` / `_lcats`, `list_agency_awarding_contracts` / `_funding_contracts`, `list_vehicle_awardees` / `_orders`, `list_otidv_awards`, `list_gsa_elibrary_contracts`, `list_business_types`, `list_offices`, `list_departments`, `list_mas_sins`, `list_assistance_listings`, `list_lcats` (dispatcher). Meta: `resolve`, `validate`, `get_version`, `list_api_keys`. `list_opportunities` with `search` also matches attachment text. Metrics dispatcher: `list_metrics`.
 
 See [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) for full signatures, filter fields, and quirks.
 

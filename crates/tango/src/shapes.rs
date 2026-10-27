@@ -14,6 +14,17 @@ pub const DEFAULT_BASE_URL: &str = "https://tango.makegov.com";
 pub const SHAPE_CONTRACTS_MINIMAL: &str =
     "key,piid,award_date,recipient(display_name),description,total_contract_value";
 
+/// Default shape for the four assistance award lists and details, e.g. [`Client::list_assistance_grants`](crate::Client::list_assistance_grants) and [`Client::get_assistance_grant`](crate::Client::get_assistance_grant).
+///
+/// Mirrors the API's own default (the same for list and detail), and names exactly the fields [`AssistanceAwardRecord`](crate::models::AssistanceAwardRecord) types.
+pub const SHAPE_ASSISTANCE_AWARDS_MINIMAL: &str = concat!(
+    "key,fain,uri,award_date,fiscal_year,assistance_type(code,description),",
+    "record_type,cfda_number,assistance_listing(number,title),title,",
+    "obligated,pragmatic_obligations,face_value_of_loan,loan_subsidy_cost,",
+    "awarding_office(*),funding_office(*),recipient(*),place_of_performance(*),",
+    "period_of_performance(start_date,current_end_date)",
+);
+
 /// Default shape for [`Client::list_budget_accounts`](crate::Client::list_budget_accounts) and [`Client::get_budget_account`](crate::Client::get_budget_account).
 ///
 /// Mirrors the API's own default budget-account shape, including `data_through_period`, `account_category` and `source_anomalies` (decode the latter with [`BudgetSourceAnomaly::from_record`](crate::models::BudgetSourceAnomaly::from_record)).

@@ -824,3 +824,213 @@ async fn contract_obligations_by_fiscal_year_decode_from_a_list_row() {
     assert_eq!(years[1].fiscal_year, Some(2026));
     assert_eq!(years[1].obligated, Some(-50.25));
 }
+
+async fn mock_assistance_group<'a>(server: &'a MockServer, group: &str) -> [httpmock::Mock<'a>; 4] {
+    let base = format!("/api/assistance/{group}");
+    let key = format!("ASST_NON_{group}_069");
+    let list = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(format!("{base}/"))
+                .query_param("cfda_number", "20.823|93.778")
+                .query_param("pop_state", "AL")
+                .query_param("obligated_gte", "1000")
+                .query_param("ordering", "-pragmatic_obligations");
+            then.status(200)
+                .header("X-Results-CountType", "approximate")
+                .json_body(json!({
+                    "count": 5_759_909,
+                    "next": format!("{}{base}/?cursor=C2", server.base_url()),
+                    "previous": null,
+                    "cursor": "C2",
+                    "previous_cursor": null,
+                    "results": [{"key": key, "assistance_type": {"code": "F001", "description": "Grant"}}]
+                }));
+        })
+        .await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(format!("{base}/{key}/"))
+                .query_param("shape", "key,assistance_type,listings(*)");
+            then.status(200).json_body(json!({
+                "key": key,
+                "assistance_type": "F001",
+                "listings": [{"cfda_number": "20.823", "is_primary": true}]
+            }));
+        })
+        .await;
+    let transactions = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(format!("{base}/{key}/transactions/"))
+                .query_param("page", "2")
+                .query_param("limit", "50");
+            then.status(200).json_body(page(json!([{
+                "key": "6938_693JF72640002_-NONE-_20.823_-NONE-",
+                "action_type": "A1",
+                "obligated": 2_000_000.0,
+                "action_date_fiscal_year": 2027
+            }])));
+        })
+        .await;
+    let listings = server
+        .mock_async(|when, then| {
+            when.method(GET).path(format!("{base}/{key}/listings/"));
+            then.status(200).json_body(page(json!([{
+                "cfda_number": "20.823",
+                "is_primary": true,
+                "pragmatic_obligations": 2_000_000.0,
+                "transactions_count": 1
+            }])));
+        })
+        .await;
+    [list, get, transactions, listings]
+}
+
+#[tokio::test]
+async fn assistance_routes() {
+    let server = MockServer::start_async().await;
+    let c = make_client(&server);
+    let filters = || {
+        tango::ListAssistanceAwardsOptions::builder()
+            .cfda_number("20.823|93.778")
+            .pop_state("AL")
+            .obligated_gte("1000")
+            .ordering("-pragmatic_obligations")
+            .build()
+    };
+    let get_opts = || {
+        Some(
+            tango::GetAssistanceAwardOptions::builder()
+                .shape("key,assistance_type,listings(*)")
+                .build(),
+        )
+    };
+    let tx_opts = || {
+        Some(
+            tango::AssistanceSubresourceOptions::builder()
+                .page(2u32)
+                .limit(50u32)
+                .build(),
+        )
+    };
+
+    for group in ["grants", "loans", "direct_payments", "other"] {
+        let mocks = mock_assistance_group(&server, group).await;
+        let key = format!("ASST_NON_{group}_069");
+        let (list, award, transactions, listings) = match group {
+            "grants" => (
+                c.list_assistance_grants(filters()).await,
+                c.get_assistance_grant(&key, get_opts()).await,
+                c.list_assistance_grant_transactions(&key, tx_opts()).await,
+                c.list_assistance_grant_listings(&key, None).await,
+            ),
+            "loans" => (
+                c.list_assistance_loans(filters()).await,
+                c.get_assistance_loan(&key, get_opts()).await,
+                c.list_assistance_loan_transactions(&key, tx_opts()).await,
+                c.list_assistance_loan_listings(&key, None).await,
+            ),
+            "direct_payments" => (
+                c.list_assistance_direct_payments(filters()).await,
+                c.get_assistance_direct_payment(&key, get_opts()).await,
+                c.list_assistance_direct_payment_transactions(&key, tx_opts())
+                    .await,
+                c.list_assistance_direct_payment_listings(&key, None).await,
+            ),
+            _ => (
+                c.list_assistance_other(filters()).await,
+                c.get_assistance_other(&key, get_opts()).await,
+                c.list_assistance_other_transactions(&key, tx_opts()).await,
+                c.list_assistance_other_listings(&key, None).await,
+            ),
+        };
+        for m in &mocks {
+            m.assert_async().await;
+        }
+
+        let list = list.expect("list");
+        assert_eq!(list.count_type.as_deref(), Some("approximate"), "{group}");
+        assert_eq!(list.cursor.as_deref(), Some("C2"), "{group}");
+        let row = tango::models::AssistanceAwardRecord::from_record(&list.results[0])
+            .expect("decode row");
+        assert_eq!(row.key.as_deref(), Some(key.as_str()));
+        assert_eq!(
+            row.assistance_type.and_then(|t| t.description).as_deref(),
+            Some("Grant")
+        );
+
+        let award = award.expect("get");
+        assert_eq!(award.key.as_deref(), Some(key.as_str()));
+        assert_eq!(
+            award.assistance_type.and_then(|t| t.code).as_deref(),
+            Some("F001")
+        );
+        assert_eq!(
+            award.extra.get("listings"),
+            Some(&json!([{"cfda_number": "20.823", "is_primary": true}]))
+        );
+
+        let transactions = transactions.expect("transactions");
+        assert_eq!(transactions.results[0].action_type.as_deref(), Some("A1"));
+        assert_eq!(transactions.results[0].obligated, Some(2_000_000.0));
+        assert_eq!(transactions.results[0].action_date_fiscal_year, Some(2027));
+
+        let listings = listings.expect("listings");
+        assert_eq!(listings.results[0].is_primary, Some(true));
+        assert_eq!(listings.results[0].pragmatic_obligations, Some(2_000_000.0));
+        assert_eq!(listings.results[0].transactions_count, Some(1));
+    }
+}
+
+#[tokio::test]
+async fn iterate_assistance_follows_the_cursor_and_keeps_filters() {
+    use futures::TryStreamExt;
+
+    let server = MockServer::start_async().await;
+    let second = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/assistance/loans/")
+                .query_param("cursor", "C2")
+                .query_param("uei", "HS97F2C9NME3")
+                .matches(|req| !req.query_params.iter().flatten().any(|(k, _)| k == "page"));
+            then.status(200).json_body(json!({
+                "count": 3,
+                "next": null,
+                "previous": null,
+                "cursor": null,
+                "results": [{"key": "L3"}]
+            }));
+        })
+        .await;
+    let first = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/assistance/loans/")
+                .query_param("uei", "HS97F2C9NME3");
+            then.status(200).json_body(json!({
+                "count": 3,
+                "next": format!("{}/api/assistance/loans/?uei=HS97F2C9NME3&cursor=C2", server.base_url()),
+                "previous": null,
+                "cursor": "C2",
+                "results": [{"key": "L1"}, {"key": "L2"}]
+            }));
+        })
+        .await;
+
+    let keys: Vec<String> = make_client(&server)
+        .iterate_assistance_loans(
+            tango::ListAssistanceAwardsOptions::builder()
+                .uei("HS97F2C9NME3")
+                .build(),
+        )
+        .map_ok(|r| r["key"].as_str().expect("key").to_string())
+        .try_collect()
+        .await
+        .expect("stream");
+    assert_eq!(keys, vec!["L1", "L2", "L3"]);
+    first.assert_hits_async(1).await;
+    second.assert_hits_async(1).await;
+}

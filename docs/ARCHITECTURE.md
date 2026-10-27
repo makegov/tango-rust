@@ -24,6 +24,7 @@ tango-rust/                           (workspace root)
 │   │       ├── version.rs            # VERSION const
 │   │       ├── models/               # Typed input/output structs
 │   │       │   ├── agency.rs
+│   │       │   ├── assistance.rs     # AssistanceAwardRecord, transactions, listings
 │   │       │   ├── awards.rs         # FiscalYearObligation
 │   │       │   ├── budget.rs         # BudgetSourceAnomaly
 │   │       │   ├── ebuy.rs
@@ -33,6 +34,7 @@ tango-rust/                           (workspace root)
 │   │       │   └── webhook.rs
 │   │       └── resources/            # One module per resource family
 │   │           ├── agencies.rs
+│   │           ├── assistance.rs     # grants / loans / direct payments / other
 │   │           ├── contracts.rs
 │   │           ├── idvs.rs
 │   │           ├── idv_subresources.rs
@@ -84,6 +86,8 @@ A small hand-picked set of methods return typed structs where the sibling SDKs a
 | ------ | ----------- |
 | `get_agency` | `AgencyRecord` |
 | `get_protest` | `ProtestRecord` |
+| `get_assistance_grant` / `_loan` / `_direct_payment` / `_other` | `AssistanceAwardRecord` |
+| `list_assistance_*_transactions` / `list_assistance_*_listings` | `Page<AssistanceTransaction>` / `Page<AssistanceAwardListing>` |
 | `get_ebuy_access` | `EbuyAccess` |
 | `resolve` | `ResolveResult` (with `Vec<ResolveCandidate>`) |
 | `validate` | `ValidateResult` |
