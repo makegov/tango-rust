@@ -7,6 +7,12 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### `makegov-tango`
+
+#### Added
+
+- **Financial-assistance awards** (Tango API 5.12.0). `resources/assistance.rs` covers `/api/assistance/grants/`, `/loans/`, `/direct_payments/` and `/other/`: per group a `list_assistance_*` / `iterate_assistance_*`, a `get_assistance_*` by `key`, and `list_assistance_*_transactions` / `list_assistance_*_listings` for the `/<key>/transactions/` and `/<key>/listings/` sub-routes (e.g. `list_assistance_grants`, `get_assistance_loan`, `list_assistance_direct_payment_transactions`, `list_assistance_other_listings`). `ListAssistanceAwardsOptions` names every filter the four lists take, under the API's own names: the contract filters assistance inherits (`key`, `uei`, `recipient`, `awarding_agency`, `funding_agency`, the `award_date`, `fiscal_year` and `pop_start_date` / `pop_end_date` ranges, `search`, `ordering`) plus `fain`, `uri`, `cfda_number`, `assistance_type`, `record_type`, `business_funds_indicator`, `disaster_emergency_fund_code`, `funding_opportunity_number`, `pop_state`, `pop_country`, `pop_zip` and `obligated_gte` / `_lte`. The lists are cursor-paginated only, so the options carry no `page`; the sub-routes take only `page` and `limit` (`AssistanceSubresourceOptions`). Detail methods return the typed `models::AssistanceAwardRecord`, which carries every field of the API's default shape (`SHAPE_ASSISTANCE_AWARDS_MINIMAL`) and decodes a list row with `AssistanceAwardRecord::from_record`; the sub-routes return `Page<AssistanceTransaction>` and `Page<AssistanceAwardListing>`. These are grant AWARDS, money already obligated; grant OPPORTUNITIES stay on `list_grants`.
+
 ## [0.3.1] — 2026-10-19
 
 ### `makegov-tango`

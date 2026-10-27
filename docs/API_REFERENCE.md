@@ -132,6 +132,37 @@ Options: `ListOTAsOptions`, `GetOTAOptions`, `ListOTIDVsOptions`, `GetOTIDVOptio
 
 Options: `ListSubawardsOptions` (list), `ListOptions` (`get_subaward`). **Note**: the server rejects `id` and `amount` in subaward shapes; use `SHAPE_SUBAWARDS_MINIMAL` or a custom shape that avoids them.
 
+### Assistance awards (`assistance.rs`)
+
+Federal financial-assistance awards from USAspending (Tango API 5.12.0), split into four endpoints by the GSDM assistance type of each award's latest action. All four take the same options, shapes and sub-routes.
+
+| Group | Endpoint | Assistance types |
+| ----- | -------- | ---------------- |
+| grant | `/api/assistance/grants/` | `F001` grant, `F002` cooperative agreement |
+| loan | `/api/assistance/loans/` | `F003` direct loan, `F004` loan guarantee |
+| direct_payment | `/api/assistance/direct_payments/` | `F006`, `F007` direct payments |
+| other | `/api/assistance/other/` | `F005` insurance, `F008`–`F010` |
+
+| Method (grant shown; `loan`, `direct_payment`, `other` match) | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_assistance_grants(opts)` / `iterate_assistance_grants(opts)` | `GET /api/assistance/grants/` | `Page<Record>` / `PageStream<Record>` |
+| `get_assistance_grant(key, opts)` | `GET /api/assistance/grants/{key}/` | **`AssistanceAwardRecord`** (typed) |
+| `list_assistance_grant_transactions(key, opts)` | `GET /api/assistance/grants/{key}/transactions/` | **`Page<AssistanceTransaction>`** (typed) |
+| `list_assistance_grant_listings(key, opts)` | `GET /api/assistance/grants/{key}/listings/` | **`Page<AssistanceAwardListing>`** (typed) |
+
+The plural list methods are `list_assistance_loans`, `list_assistance_direct_payments` and `list_assistance_other`; the rest follow the singular group name (`get_assistance_direct_payment`, `list_assistance_loan_listings`, `iterate_assistance_other`, …).
+
+Options: `ListAssistanceAwardsOptions` (lists), `GetAssistanceAwardOptions` (`shape`, `flat`, `flat_lists`, `joiner`), `AssistanceSubresourceOptions` (`page`, `limit`). Shape: `SHAPE_ASSISTANCE_AWARDS_MINIMAL`, the API's default for list and detail, whose fields are exactly those `AssistanceAwardRecord` types; decode a list row with `AssistanceAwardRecord::from_record(&row)`.
+
+Filters, each under the API's own name: `key`, `fain`, `uri`, `funding_opportunity_number`, `uei`, `recipient`, `awarding_agency`, `funding_agency`, `cfda_number`, `assistance_type`, `record_type`, `business_funds_indicator`, `disaster_emergency_fund_code`, `award_date` / `_gte` / `_lte`, `fiscal_year` / `_gte` / `_lte`, `pop_start_date_gte` / `_lte`, `pop_end_date_gte` / `_lte`, `pop_state`, `pop_country`, `pop_zip`, `obligated_gte` / `_lte`, `search`. Ordering: `award_date` (the default is `-award_date`), `obligated`, `pragmatic_obligations`. Pass `exact=true` through `extra` for an exact `count`.
+
+- **These are grant awards, not grant opportunities.** Money already obligated to a recipient is here; Grants.gov opportunities you can apply for are `list_grants`. An award's `funding_opportunity_number` names the opportunity it was made under, and the filter of that name finds every award made under one.
+- **Compare money across groups with `pragmatic_obligations`.** It is the obligation for grants and payments and the subsidy cost for loans; a loan's `obligated` is not comparable to a grant's.
+- **`cfda_number` matches the primary listing only.** An award funded under several programs carries the others on its `/listings/` sub-route.
+- **The lists are cursor-paginated only**, so `ListAssistanceAwardsOptions` has no `page`; `iterate_*` follows the server's cursor. The sub-routes are page-numbered and take nothing else (no shape, filter or ordering): `/transactions/` defaults to 100 a page (max 500), `/listings/` to 10 (max 100).
+- **A retired key still resolves.** A key from an award's `former_award_keys` serves the award that carries it now, on detail and sub-routes. An award whose latest action moves to another group moves endpoints with the same `key`, and its old URL 404s; a key that names no award in the group 404s on detail and returns an empty page on the sub-routes.
+- **`recipient` is null on aggregate and PII-redacted records** (record types `1` and `3`). `assistance_type` decodes from the `{code, description}` expand or from the bare code the leaf form sends.
+
 ### Budget (`budget.rs`)
 
 | Method | Endpoint | Returns |
