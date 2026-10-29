@@ -41,6 +41,9 @@ pub struct ListDibbsRfqsOptions {
     /// National Stock Number. Supports OR via `|`.
     #[builder(into)]
     pub nsn: Option<String>,
+    /// Federal Supply Class: the first four digits of the NSN (e.g. `6515`). Each value must be exactly four digits; supports OR via `|`. Any other value is rejected with a 400.
+    #[builder(into)]
+    pub fsc: Option<String>,
     /// Manufacturer part number. Supports OR via `|`.
     #[builder(into)]
     pub part_number: Option<String>,
@@ -103,6 +106,7 @@ impl ListDibbsRfqsOptions {
         );
         push_opt_bool(&mut q, "open", self.open);
         push_opt(&mut q, "nsn", self.nsn.as_deref());
+        push_opt(&mut q, "fsc", self.fsc.as_deref());
         push_opt(&mut q, "part_number", self.part_number.as_deref());
         push_opt(&mut q, "solicitation", self.solicitation.as_deref());
         push_opt(&mut q, "purchase_request", self.purchase_request.as_deref());
@@ -166,6 +170,9 @@ pub struct ListDibbsRfpsOptions {
     /// National Stock Number. Supports OR via `|`.
     #[builder(into)]
     pub nsn: Option<String>,
+    /// Federal Supply Class: the first four digits of the NSN (e.g. `6515`). Each value must be exactly four digits; supports OR via `|`. Any other value is rejected with a 400.
+    #[builder(into)]
+    pub fsc: Option<String>,
     /// Manufacturer part number. Supports OR via `|`.
     #[builder(into)]
     pub part_number: Option<String>,
@@ -216,6 +223,7 @@ impl ListDibbsRfpsOptions {
         );
         push_opt_bool(&mut q, "open", self.open);
         push_opt(&mut q, "nsn", self.nsn.as_deref());
+        push_opt(&mut q, "fsc", self.fsc.as_deref());
         push_opt(&mut q, "part_number", self.part_number.as_deref());
         push_opt(&mut q, "solicitation", self.solicitation.as_deref());
         push_opt(&mut q, "buyer_code", self.buyer_code.as_deref());
@@ -279,6 +287,9 @@ pub struct ListDibbsAwardsOptions {
     /// National Stock Number. Supports OR via `|`.
     #[builder(into)]
     pub nsn: Option<String>,
+    /// Federal Supply Class: the first four digits of the NSN (e.g. `6515`). Each value must be exactly four digits; supports OR via `|`. Any other value is rejected with a 400.
+    #[builder(into)]
+    pub fsc: Option<String>,
     /// Manufacturer part number. Supports OR via `|`.
     #[builder(into)]
     pub part_number: Option<String>,
@@ -346,6 +357,7 @@ impl ListDibbsAwardsOptions {
             self.flat_lists,
         );
         push_opt(&mut q, "nsn", self.nsn.as_deref());
+        push_opt(&mut q, "fsc", self.fsc.as_deref());
         push_opt(&mut q, "part_number", self.part_number.as_deref());
         push_opt(&mut q, "solicitation", self.solicitation.as_deref());
         push_opt(&mut q, "award_number", self.award_number.as_deref());
@@ -536,6 +548,7 @@ mod tests {
         let opts = ListDibbsRfqsOptions::builder()
             .open(true)
             .nsn("v-nsn")
+            .fsc("v-fsc")
             .part_number("v-part_number")
             .solicitation("v-solicitation")
             .purchase_request("v-purchase_request")
@@ -554,6 +567,7 @@ mod tests {
         let q = opts.to_query();
         assert_eq!(get_q(&q, "open").as_deref(), Some("true"));
         assert_eq!(get_q(&q, "nsn").as_deref(), Some("v-nsn"));
+        assert_eq!(get_q(&q, "fsc").as_deref(), Some("v-fsc"));
         assert_eq!(get_q(&q, "part_number").as_deref(), Some("v-part_number"));
         assert_eq!(get_q(&q, "solicitation").as_deref(), Some("v-solicitation"));
         assert_eq!(
@@ -583,7 +597,7 @@ mod tests {
         );
         assert_eq!(get_q(&q, "search").as_deref(), Some("v-search"));
         assert_eq!(get_q(&q, "ordering").as_deref(), Some("v-ordering"));
-        assert_eq!(q.len(), 16);
+        assert_eq!(q.len(), 17);
     }
 
     #[test]
@@ -644,6 +658,7 @@ mod tests {
         let opts = ListDibbsRfpsOptions::builder()
             .open(true)
             .nsn("v-nsn")
+            .fsc("v-fsc")
             .part_number("v-part_number")
             .solicitation("v-solicitation")
             .buyer_code("v-buyer_code")
@@ -658,6 +673,7 @@ mod tests {
         let q = opts.to_query();
         assert_eq!(get_q(&q, "open").as_deref(), Some("true"));
         assert_eq!(get_q(&q, "nsn").as_deref(), Some("v-nsn"));
+        assert_eq!(get_q(&q, "fsc").as_deref(), Some("v-fsc"));
         assert_eq!(get_q(&q, "part_number").as_deref(), Some("v-part_number"));
         assert_eq!(get_q(&q, "solicitation").as_deref(), Some("v-solicitation"));
         assert_eq!(get_q(&q, "buyer_code").as_deref(), Some("v-buyer_code"));
@@ -680,7 +696,7 @@ mod tests {
         );
         assert_eq!(get_q(&q, "search").as_deref(), Some("v-search"));
         assert_eq!(get_q(&q, "ordering").as_deref(), Some("v-ordering"));
-        assert_eq!(q.len(), 12);
+        assert_eq!(q.len(), 13);
     }
 
     #[test]
@@ -740,6 +756,7 @@ mod tests {
     fn list_dibbs_awards_all_filters_emit() {
         let opts = ListDibbsAwardsOptions::builder()
             .nsn("v-nsn")
+            .fsc("v-fsc")
             .part_number("v-part_number")
             .solicitation("v-solicitation")
             .award_number("v-award_number")
@@ -759,6 +776,7 @@ mod tests {
             .build();
         let q = opts.to_query();
         assert_eq!(get_q(&q, "nsn").as_deref(), Some("v-nsn"));
+        assert_eq!(get_q(&q, "fsc").as_deref(), Some("v-fsc"));
         assert_eq!(get_q(&q, "part_number").as_deref(), Some("v-part_number"));
         assert_eq!(get_q(&q, "solicitation").as_deref(), Some("v-solicitation"));
         assert_eq!(get_q(&q, "award_number").as_deref(), Some("v-award_number"));
@@ -799,7 +817,7 @@ mod tests {
         );
         assert_eq!(get_q(&q, "search").as_deref(), Some("v-search"));
         assert_eq!(get_q(&q, "ordering").as_deref(), Some("v-ordering"));
-        assert_eq!(q.len(), 17);
+        assert_eq!(q.len(), 18);
     }
 
     #[test]
