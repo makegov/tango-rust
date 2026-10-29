@@ -7,6 +7,14 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-29
+
+### `makegov-tango`
+
+#### Added
+
+- **DIBBS `fsc` filter** (Tango API 5.13.0). `ListDibbsRfqsOptions`, `ListDibbsRfpsOptions` and `ListDibbsAwardsOptions` gain `fsc`, the Federal Supply Class (the first four digits of the NSN, e.g. `6515`). Several classes OR together with `|` (`6515|6530`); the API rejects any value that is not exactly four digits with a 400.
+
 ## [0.3.1] — 2026-10-19
 
 ### `makegov-tango`

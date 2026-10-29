@@ -84,7 +84,8 @@ async fn dibbs_routes() {
             when.method(GET)
                 .path("/api/dibbs/rfqs/")
                 .query_param("open", "false")
-                .query_param("nsn", "5340-01-123-4567");
+                .query_param("nsn", "5340-01-123-4567")
+                .query_param("fsc", "5340");
             then.status(200).json_body(page(json!([{"uuid": "r1"}])));
         })
         .await;
@@ -92,7 +93,8 @@ async fn dibbs_routes() {
         .mock_async(|when, then| {
             when.method(GET)
                 .path("/api/dibbs/rfps/")
-                .query_param("buyer_code", "PB");
+                .query_param("buyer_code", "PB")
+                .query_param("fsc", "6515|6530");
             then.status(200).json_body(page(json!([{"uuid": "p1"}])));
         })
         .await;
@@ -100,7 +102,8 @@ async fn dibbs_routes() {
         .mock_async(|when, then| {
             when.method(GET)
                 .path("/api/dibbs/awards/")
-                .query_param("awardee_cage", "1ABC5");
+                .query_param("awardee_cage", "1ABC5")
+                .query_param("fsc", "5340");
             then.status(200).json_body(page(json!([{"uuid": "a1"}])));
         })
         .await;
@@ -118,17 +121,24 @@ async fn dibbs_routes() {
             ListDibbsRfqsOptions::builder()
                 .open(false)
                 .nsn("5340-01-123-4567")
+                .fsc("5340")
                 .build(),
         )
         .await
         .expect("rfqs");
     assert_eq!(p.results.len(), 1);
-    c.list_dibbs_rfps(ListDibbsRfpsOptions::builder().buyer_code("PB").build())
-        .await
-        .expect("rfps");
+    c.list_dibbs_rfps(
+        ListDibbsRfpsOptions::builder()
+            .buyer_code("PB")
+            .fsc("6515|6530")
+            .build(),
+    )
+    .await
+    .expect("rfps");
     c.list_dibbs_awards(
         ListDibbsAwardsOptions::builder()
             .awardee_cage("1ABC5")
+            .fsc("5340")
             .build(),
     )
     .await
