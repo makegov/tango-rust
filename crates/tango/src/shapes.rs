@@ -282,6 +282,26 @@ pub const SHAPE_FEDERAL_REGISTER_COMPREHENSIVE: &str = concat!(
     "comment_url,regulations_dot_gov_url,raw_text_url,body_html_url",
 );
 
+/// Suggested list shape for [`Client::list_award_announcements`](crate::Client::list_award_announcements).
+///
+/// Mirrors the API's default list shape. `text` is left out: it can run past 16,000 characters, so name it when you want it on a list.
+pub const SHAPE_AWARD_ANNOUNCEMENTS_MINIMAL: &str = concat!(
+    "uuid,source,source_name,source_url,published_date,award_date,title,amount,",
+    "value_kind,action_type,announcement_type,awardee_count,piids,is_modification,",
+    "is_multiple_award,is_withdrawn,awardees(*)",
+);
+
+/// Suggested detail shape for [`Client::get_award_announcement`](crate::Client::get_award_announcement).
+///
+/// Mirrors the API's default detail shape, including the `awardees(*)` and `organization(*)` expands.
+pub const SHAPE_AWARD_ANNOUNCEMENTS_COMPREHENSIVE: &str = concat!(
+    "uuid,source,source_name,source_url,published_date,award_date,title,amount,",
+    "value_kind,action_type,announcement_type,awardee_count,piids,is_modification,",
+    "is_multiple_award,is_withdrawn,awardees(*),source_record_id,text,obligated_at_award,award_kind,",
+    "award_uuids,civilian,component,contracting_activity,corrections,",
+    "organization(*)",
+);
+
 /// Suggested list shape for [`Client::list_ebuy_requests`](crate::Client::list_ebuy_requests).
 ///
 /// Mirrors the API's default list shape. `description` is detail-only; `attachment_count` says whether a detail fetch is worth it.

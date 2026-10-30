@@ -33,6 +33,7 @@ tango-rust/                           (workspace root)
 │   │       │   └── webhook.rs
 │   │       └── resources/            # One module per resource family
 │   │           ├── agencies.rs
+│   │           ├── award_announcements.rs # award announcements (official + generated)
 │   │           ├── contracts.rs
 │   │           ├── idvs.rs
 │   │           ├── idv_subresources.rs

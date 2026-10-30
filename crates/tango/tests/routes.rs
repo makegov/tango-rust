@@ -1,5 +1,6 @@
 //! Wire tests for resource routes: each method hits the path and query the API documents, and decodes the response shape the API actually serves.
 
+use futures::TryStreamExt;
 use httpmock::prelude::*;
 use serde_json::json;
 use std::time::Duration;
@@ -750,6 +751,112 @@ async fn federal_register_routes() {
         doc.get("title").and_then(serde_json::Value::as_str),
         Some("Air Plan Approval")
     );
+}
+
+#[tokio::test]
+async fn award_announcement_routes() {
+    let uuid = "7d1e3a5c-2b4f-5a6e-8c0d-9f1b3d5e7a9c";
+    let server = MockServer::start_async().await;
+    let list = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path("/api/news/award_announcements/")
+                .query_param("source", "makegov_generated")
+                .query_param("piid", "N00019-25-C-0070")
+                .query_param("small_business", "false")
+                .query_param("ordering", "-amount");
+            then.status(200).json_body(page(json!([{
+                "uuid": uuid,
+                "source": "makegov_generated"
+            }])));
+        })
+        .await;
+    let get = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(format!("/api/news/award_announcements/{uuid}/"))
+                .query_param("shape", "uuid,awardees(name,uei),organization(agency_name)");
+            then.status(200).json_body(json!({
+                "uuid": uuid,
+                "awardees": [{"name": "Example Systems Corp.", "uei": null}],
+                "organization": {"agency_name": "Department of the Navy"}
+            }));
+        })
+        .await;
+    let c = make_client(&server);
+    let p = c
+        .list_award_announcements(
+            tango::ListAwardAnnouncementsOptions::builder()
+                .source("makegov_generated")
+                .piid("N00019-25-C-0070")
+                .small_business(false)
+                .ordering("-amount")
+                .build(),
+        )
+        .await
+        .expect("list");
+    let rec = c
+        .get_award_announcement(
+            p.results[0]
+                .get("uuid")
+                .and_then(serde_json::Value::as_str)
+                .expect("uuid"),
+            Some(
+                tango::GetAwardAnnouncementOptions::builder()
+                    .shape("uuid,awardees(name,uei),organization(agency_name)")
+                    .build(),
+            ),
+        )
+        .await
+        .expect("get");
+    list.assert_async().await;
+    get.assert_async().await;
+    assert_eq!(rec["awardees"][0]["name"], json!("Example Systems Corp."));
+    assert_eq!(
+        rec["organization"]["agency_name"],
+        json!("Department of the Navy")
+    );
+}
+
+#[tokio::test]
+async fn iterate_award_announcements_walks_pages_keeping_filters() {
+    let server = MockServer::start_async().await;
+    let path = "/api/news/award_announcements/";
+    let next = server.url(format!("{path}?source=official_release&page=2"));
+    let second = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(path)
+                .query_param("source", "official_release")
+                .query_param("page", "2");
+            then.status(200).json_body(json!({
+                "count": 2, "next": null, "previous": null, "results": [{"uuid": "b"}]
+            }));
+        })
+        .await;
+    let first = server
+        .mock_async(|when, then| {
+            when.method(GET)
+                .path(path)
+                .query_param("source", "official_release");
+            then.status(200).json_body(json!({
+                "count": 2, "next": next, "previous": null, "results": [{"uuid": "a"}]
+            }));
+        })
+        .await;
+    let rows: Vec<_> = make_client(&server)
+        .iterate_award_announcements(
+            tango::ListAwardAnnouncementsOptions::builder()
+                .source("official_release")
+                .build(),
+        )
+        .try_collect()
+        .await
+        .expect("walk");
+    first.assert_async().await;
+    second.assert_async().await;
+    let uuids: Vec<_> = rows.iter().map(|r| r["uuid"].clone()).collect();
+    assert_eq!(uuids, vec![json!("a"), json!("b")]);
 }
 
 #[tokio::test]
