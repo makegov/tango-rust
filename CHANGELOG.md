@@ -7,6 +7,13 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### `makegov-tango`
+
+#### Added
+
+- **Award announcements** (Tango API 5.14.0). `list_award_announcements`, `iterate_award_announcements` and `get_award_announcement` read `/api/news/award_announcements/`, with `ListAwardAnnouncementsOptions` naming all twenty of the API's filters plus `ordering` (`published_date`, `amount`, `rank`), `GetAwardAnnouncementOptions`, and `SHAPE_AWARD_ANNOUNCEMENTS_MINIMAL` / `SHAPE_AWARD_ANNOUNCEMENTS_COMPREHENSIVE` mirroring the API's list and detail defaults. Every row names its `source`: `official_release` rows are the Department of War's daily contracts release, and `makegov_generated` rows are written by MakeGov from FPDS data with a language model and are not government text.
+- **`award_announcement` alerts** (Tango API 5.14.0). `create_webhook_alert` accepts the `award_announcement` query type, which emits `alerts.award_announcement.match`.
+
 ## [0.4.0] — 2026-10-29
 
 ### `makegov-tango`

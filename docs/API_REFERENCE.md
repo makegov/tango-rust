@@ -251,6 +251,26 @@ Options: `ListFederalRegisterDocumentsOptions` (`search`, `document_number`, `r#
 - `comments_open = Some(true)` keeps documents whose comment period closes today or later and `Some(false)` those already closed; a document with no comment deadline matches neither. `cfr_part` requires `cfr_title`, and both must match the same CFR reference. `ordering = "rank"` requires a non-empty `search`.
 - Documents published before 2008 are mostly typed `Uncategorized Document`.
 
+### Award announcements (`award_announcements.rs`)
+
+Federal award announcements from two sources, named on every row by `source` (Tango API 5.14.0), free at every tier.
+
+| Method | Endpoint | Returns |
+| ------ | -------- | ------- |
+| `list_award_announcements(opts)` / `iterate_award_announcements(opts)` | `GET /api/news/award_announcements/` | `Page<Record>` / `PageStream<Record>` |
+| `get_award_announcement(uuid, opts)` | `GET /api/news/award_announcements/{uuid}/` | `Record` |
+
+Options: `ListAwardAnnouncementsOptions` (`search`, `source`, `agency`, `component`, `published_date_after` / `_before`, `award_date_after` / `_before`, `amount_min`, `amount_max`, `piid`, `awardee`, `uei`, `action_type`, `announcement_type`, `civilian`, `small_business`, `is_modification`, `is_multiple_award`, `include_withdrawn`, and `ordering` over `published_date`, `amount` and `rank`), `GetAwardAnnouncementOptions`. Shapes: `SHAPE_AWARD_ANNOUNCEMENTS_MINIMAL` and `SHAPE_AWARD_ANNOUNCEMENTS_COMPREHENSIVE`, which mirror the API's list and detail defaults.
+
+- **`source` says who wrote the row.** `official_release` rows are the awards of $7.5 million or more that the Department of War publishes in its daily contracts release, with the text as published. `makegov_generated` rows cover new civilian IDVs of $25 million or more and every new OTA and OT IDV: they are written by MakeGov from FPDS data with a language model and are **not government text**. A generated announcement is dropped when an official release covers the same award.
+- **Withdrawn announcements are hidden from lists** unless `include_withdrawn = Some(true)`, and stay retrievable by `uuid`.
+- **`text` must be named on a list.** It can run past 16,000 characters, so only the detail default carries it.
+- The expands are `awardees(name,uei,location,small_business)` and `organization(organization_id,office_code,office_name,agency_code,agency_name,department_code,department_name)`, and `*` selects every key of either.
+- `piid` takes a contract number as printed (`N00019-25-C-0070`) or bare (`N0001925C0070`); dashes and case are ignored. `awardee` is a case-insensitive substring match of at least three characters, and shorter values return a 400. `uei` matches only where one was resolved, since official releases print none.
+- `small_business = Some(true)` keeps announcements with at least one small-business awardee and `Some(false)` those whose awardees are stated not to be small; generated announcements state neither, so they match neither. `component` is the release's section header as printed, compared case-insensitively, and generated announcements have none.
+- `ordering = "rank"` requires a non-empty `search`, and a `search` with no `ordering` sorts by `-rank`. Otherwise the default is `-published_date`. Descending `published_date` and `amount` put rows with no value last.
+- This endpoint pages by `page`, so `ListAwardAnnouncementsOptions` has no `cursor`.
+
 ### Exclusions (`exclusions.rs`)
 
 SAM.gov exclusions: debarments, suspensions and other ineligibility records.
